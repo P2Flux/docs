@@ -612,6 +612,13 @@
                     },
                     "expires_at": {
                       "type": "integer"
+                    },
+                    "confirmations_required": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "description": "How many confirmations the server's finality policy requires before /v1/payments/verify answers valid. Advisory: a client may wait this depth out on its own RPC and then verify once, instead of polling verify while blocks accumulate. Null when the policy is tag-based (safe) - then poll verify as before. The server always applies the policy itself regardless of what the client does with this number."
                     }
                   }
                 }
@@ -682,6 +689,11 @@
                   },
                   "tx_hash": {
                     "$ref": "#/components/schemas/Bytes32"
+                  },
+                  "settlement_receipt": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "Optional. The sealed settlement receipt a previous CONFIRMED verify of this same payment returned. Presenting a valid one answers immediately without re-reading the chain; presenting a missing, expired, malformed or mismatched one silently falls back to the full verification. It is only ever honoured together with the exact intent and tx_hash it was issued for."
                   }
                 },
                 "required": [
@@ -723,6 +735,10 @@
                         },
                         "block_hash": {
                           "$ref": "#/components/schemas/Bytes32"
+                        },
+                        "settlement_receipt": {
+                          "type": "string",
+                          "description": "Sealed, short-lived proof of this CONFIRMED verdict (token prefix p2paid1). Hand it back on a later verify of the same intent + tx_hash to get the same answer without another chain verification - e.g. from the buyer's browser to the merchant's server. Issued only with valid=true; a confirming or failed verification never carries one."
                         }
                       }
                     },
