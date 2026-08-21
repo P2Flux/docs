@@ -779,6 +779,14 @@
                   }
                 }
               }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Present on PAYMENT_CONFIRMING answers: seconds to wait before asking again. The server also remembers its last verdict per (intent, tx_hash) for a short window, so re-asking sooner returns the same answer from memory.",
+                "schema": {
+                  "type": "string"
+                }
+              }
             }
           },
           "429": {
