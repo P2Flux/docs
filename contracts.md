@@ -32,7 +32,7 @@ deploying a new contract. The current values are in
 ## Using the ABIs
 
 ```bash
-npm install github:P2Flux/contracts#v0.1.0
+npm install github:P2Flux/contracts#v0.2.0
 ```
 
 ```ts
