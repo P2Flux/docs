@@ -56,7 +56,8 @@ other, by construction. **Integrate against the test environment.** Production e
 | [sdk-php](https://github.com/P2Flux/sdk-php) | PHP 8.1+, injectable transport |
 | [contracts](https://github.com/P2Flux/contracts) | Solidity sources, ABIs, EIP-712 definitions, chain constants |
 
-Neither SDK is published to npm or Packagist yet — install from a pinned git tag. The two do not yet
-cover the same surface: `createSubscription`, `createPayment`, `verifyPayment` and
-`createCancellationSession` exist in PHP only. The [API reference](https://p2flux.com/docs/api/)
-describes the HTTP endpoints themselves, which both can reach.
+Neither SDK is published to npm or Packagist yet — install from a pinned git tag
+(`@p2flux/sdk` v0.4.0, `p2flux/p2flux-php` v0.5.0). Both SDKs cover the complete public V1
+merchant/server surface — the same 15 operations, verified by a checked-in parity test in each
+repository. The [API reference](https://p2flux.com/docs/api/) describes the HTTP endpoints
+themselves.
