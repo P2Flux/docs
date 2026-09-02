@@ -294,6 +294,165 @@
         }
       }
     },
+    "/v1/charges/recover": {
+      "post": {
+        "operationId": "recoverCharge",
+        "summary": "Find the transaction that charged one recurring period",
+        "tags": [
+          "Recurring payments"
+        ],
+        "description": "For when a charge landed and its response did not: your retry answers `ALREADY_CHARGED`, which proves the period was collected and names no transaction. P2Flux stores nothing, so the hash lives only in the contract's log - and without it you cannot attribute the payment to an order, audit it, or refund it, because refunds start from the original settlement.\n\nGive it the subscription and the exact period. There is no 'current period' form on purpose: you are reconciling one specific collection, today or in a year, and the answer must not move under you.\n\n**The event is the proof.** A settlement is returned only when the contract's own `SubscriptionCharged` log names this subscription AND this period, and only when its payer, recipient and amount match the signed authorization.\n\n**`found: false` is ordinary.** There is no catch-up billing, so a period that was never collected is a normal history: a later period having been charged says nothing about an earlier one. Like the one-time recovery, a miss is a statement about one block height and never a permanent verdict.\n\nA `hint` is an optimisation and nothing else - it narrows where the search starts, can never turn a miss into a hit, and is safe to omit.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "subscription",
+                  "period_index"
+                ],
+                "properties": {
+                  "subscription": {
+                    "$ref": "#/components/schemas/Token"
+                  },
+                  "period_index": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "The exact billing period to reconcile, as returned by /v1/charges or /v1/subscriptions/status."
+                  },
+                  "hint": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "Where your own records say you attempted the charge. Narrows the search; never evidence.",
+                    "properties": {
+                      "attempted_at": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Unix seconds."
+                      },
+                      "block": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Either the located settlement, or a not-found that names the block it was true at.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "found"
+                  ],
+                  "properties": {
+                    "found": {
+                      "type": "boolean"
+                    },
+                    "subscription_id": {
+                      "$ref": "#/components/schemas/Bytes32"
+                    },
+                    "period_index": {
+                      "type": "integer"
+                    },
+                    "tx_hash": {
+                      "$ref": "#/components/schemas/Bytes32"
+                    },
+                    "block_number": {
+                      "type": "string"
+                    },
+                    "payer": {
+                      "$ref": "#/components/schemas/Address"
+                    },
+                    "recipient": {
+                      "$ref": "#/components/schemas/Address"
+                    },
+                    "net_units": {
+                      "$ref": "#/components/schemas/AmountUnits"
+                    },
+                    "fee_units": {
+                      "$ref": "#/components/schemas/AmountUnits"
+                    },
+                    "network_fee_units": {
+                      "$ref": "#/components/schemas/AmountUnits"
+                    },
+                    "amount_units": {
+                      "$ref": "#/components/schemas/AmountUnits",
+                      "description": "net + fee + networkFee: the amount the authorization signed for."
+                    },
+                    "code": {
+                      "$ref": "#/components/schemas/ErrorCode"
+                    },
+                    "as_of_block": {
+                      "type": "string",
+                      "description": "Only on a miss. The head this answer was computed at."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused. `error` names which of: `INVALID_SUBSCRIPTION`, `INVALID_REQUEST`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`PAYMENT_CONFIRMING` - the settlement exists and is not yet deep enough to act on. The transaction hash rides along; ask again about that same one.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limited per IP and per subscription - reconciliation is a background job, not a poll loop.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`PAYMENT_RECOVERY_INCONSISTENT` (a log that contradicts the signed terms) or `RPC_ERROR`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`RECOVERY_UNAVAILABLE` - the search could not be completed within its bounded budget on this deployment. Retryable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/payments": {
       "post": {
         "operationId": "createPayment",
