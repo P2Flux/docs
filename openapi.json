@@ -85,6 +85,167 @@
         }
       }
     },
+    "/v1/allowances/restore/resolve": {
+      "post": {
+        "operationId": "resolveAllowanceRestore",
+        "summary": "Read an allowance-restore session back",
+        "tags": [
+          "Recurring payments"
+        ],
+        "description": "For the browser holding the session: the terms of the approval to ask for. Terms only - the transaction is the customer's own standard ERC-20 `approve()`, which their wallet builds and sends.\n\nThe spender is P2Flux's recurring contract, taken from the signed session. A screen that accepted a spender from its own input would be a phishing page.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "approve_token"
+                ],
+                "properties": {
+                  "approve_token": {
+                    "$ref": "#/components/schemas/Token"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What to approve, and who must approve it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "chain_id": {
+                      "type": "integer"
+                    },
+                    "token": {
+                      "$ref": "#/components/schemas/Address"
+                    },
+                    "spender": {
+                      "$ref": "#/components/schemas/Address"
+                    },
+                    "payer": {
+                      "$ref": "#/components/schemas/Address"
+                    },
+                    "subscription_id": {
+                      "$ref": "#/components/schemas/Bytes32"
+                    },
+                    "required_units": {
+                      "$ref": "#/components/schemas/AmountUnits",
+                      "description": "The signed amount plus the gas reimbursement the next charge may add. An allowance covering only the amount stalls on the reimbursement."
+                    },
+                    "expires_at": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused. `error` names which of: `INVALID_CANCEL_TOKEN`, `CANCEL_TOKEN_EXPIRED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited per IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/allowances/restore/session": {
+      "post": {
+        "operationId": "createAllowanceRestoreSession",
+        "summary": "Session for restoring the allowance one subscription needs",
+        "tags": [
+          "Recurring payments"
+        ],
+        "description": "`INSUFFICIENT_ALLOWANCE` is not a dead subscription. The authorization the customer signed is intact and the seller can still collect; what ran short is the ERC-20 allowance, and the fix is one `approve()` from the customer's own wallet - no new signature, no new subscription.\n\nThis exchanges the capability for the narrowest browser-facing token P2Flux issues: the payer, the spender (the recurring contract), the token and how much the next charge will pull. It carries no authorization struct and no signature, so it cannot be turned into a capability, cannot build `revoke()` and cannot prepare a refund. Hand it to the customer at `<checkout>/#/approve/<approve_token>`.\n\nShort-lived by design - it only has to survive the walk from your account page to a wallet confirmation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "subscription"
+                ],
+                "properties": {
+                  "subscription": {
+                    "$ref": "#/components/schemas/Token"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The session, and who must send the approval.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "approve_token": {
+                      "$ref": "#/components/schemas/Token"
+                    },
+                    "expires_at": {
+                      "type": "integer",
+                      "description": "Unix seconds."
+                    },
+                    "payer": {
+                      "$ref": "#/components/schemas/Address"
+                    },
+                    "subscription_id": {
+                      "$ref": "#/components/schemas/Bytes32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused. `error` names which of: `INVALID_SUBSCRIPTION`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited per IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/allowances/revoke/prepare": {
       "post": {
         "operationId": "prepareAllowanceRevocation",
