@@ -141,6 +141,13 @@
                     },
                     "expires_at": {
                       "type": "integer"
+                    },
+                    "approve_units": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "What to approve, in base units; null means unlimited. The subscription's own setup mode, so a bounded allowance is not widened on repair."
                     }
                   }
                 }
@@ -1486,6 +1493,32 @@
                     "type": "integer",
                     "minimum": 0,
                     "description": "Unix seconds, or 0 for no end date."
+                  },
+                  "allowance": {
+                    "description": "How much ERC-20 allowance the hosted checkout asks the customer's wallet for. 'unlimited' (default: one approval, never asked again), 'until_end' (enough for every period up to `end`; needs an end date), or {periods: N} for N charges' worth (1..1200), after which your restore flow asks again. The mode is carried inside the setup token; a restore session keeps the same mode. Whatever the mode, the allowance only reaches the recurring contract, which moves nothing the signed authorization does not permit.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "unlimited",
+                          "until_end"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "periods"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "periods": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 1200
+                          }
+                        }
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -1716,6 +1749,40 @@
                     "typed_data": {
                       "type": "object",
                       "description": "EIP-712 domain, types and primaryType."
+                    },
+                    "allowance": {
+                      "type": "object",
+                      "description": "The allowance mode fixed at setup.",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "unlimited",
+                            "until_end",
+                            "periods"
+                          ]
+                        },
+                        "periods": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mode"
+                      ]
+                    },
+                    "approve_units": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "What the checkout asks the wallet to approve, in base units. null means unlimited. Never below one charge (amount plus max_gas_reimbursement)."
+                    },
+                    "approve_amount": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "approve_units as a decimal USDC string; null means unlimited."
                     }
                   }
                 }
