@@ -721,6 +721,24 @@
                           "$ref": "#/components/schemas/Bytes32"
                         }
                       }
+                    },
+                    "fees": {
+                      "type": "object",
+                      "description": "What the merchant funds out of the amount, stated rather than implied. The buyer is debited the amount plus the quoted network fee in payment_token mode, and the amount alone natively.",
+                      "properties": {
+                        "payment_fee_units": {
+                          "type": "string",
+                          "description": "The percentage fee (1%), to the fee wallet."
+                        },
+                        "fixed_network_fee_units": {
+                          "type": "string",
+                          "description": "The fixed network fee, to the gas treasury. Zero outside payment_token mode."
+                        },
+                        "merchant_net_units": {
+                          "type": "string",
+                          "description": "amount - payment_fee - fixed_network_fee."
+                        }
+                      }
                     }
                   },
                   "examples": [
@@ -2333,7 +2351,7 @@
                     "network_fee_units": {
                       "type": "string"
                     },
-                    "gas_service_fee_units": {
+                    "fixed_network_fee_units": {
                       "type": "string"
                     },
                     "buyer_total_units": {
@@ -2686,13 +2704,14 @@
             "type": "string",
             "description": "The ceiling this price may not exceed."
           },
-          "gas_service_fee": {
+          "fixed_network_fee": {
             "type": "string",
-            "example": "0.100000"
+            "example": "0.100000",
+            "description": "The fixed network fee on a one-time payment. MERCHANT-funded: it comes out of the amount, like the percentage fee, and is paid to the gas treasury - the same arrangement a subscription has. It is never added to what the buyer is debited."
           },
-          "gas_service_fee_units": {
+          "fixed_network_fee_units": {
             "type": "string",
-            "description": "Flat P2Flux fee for the gas service. Zero outside one-time payments: a subscription already pays a fixed network fee on every collection."
+            "description": "The fixed network fee on a one-time payment. MERCHANT-funded: it comes out of the amount, like the percentage fee, and is paid to the gas treasury - the same arrangement a subscription has. It is never added to what the buyer is debited."
           },
           "buyer_total": {
             "type": "string"
@@ -2727,8 +2746,9 @@
             "type": "string",
             "description": "The quoted network fee the buyer accepted. Zero in native mode."
           },
-          "gas_service_fee_units": {
-            "type": "string"
+          "fixed_network_fee_units": {
+            "type": "string",
+            "description": "The fixed network fee on a one-time payment. MERCHANT-funded: it comes out of the amount, like the percentage fee, and is paid to the gas treasury - the same arrangement a subscription has. It is never added to what the buyer is debited."
           },
           "merchant_net_units": {
             "type": "string"
@@ -2780,7 +2800,7 @@
                     ]
                   }
                 },
-                "gas_service_fee_units": {
+                "fixed_network_fee_units": {
                   "type": "string"
                 },
                 "operations": {
