@@ -2119,6 +2119,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`. The answer changes only when the deployment does, so read it at start-up rather than per checkout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -2147,6 +2157,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`. The answer changes only when the deployment does, so read it at start-up rather than per checkout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
