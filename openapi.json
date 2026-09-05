@@ -106,6 +106,15 @@
                 "properties": {
                   "approve_token": {
                     "$ref": "#/components/schemas/Token"
+                  },
+                  "gas_payment_mode": {
+                    "type": "string",
+                    "enum": [
+                      "native",
+                      "payment_token"
+                    ],
+                    "default": "native",
+                    "description": "With `payment_token` the response also carries a price and the two messages the customer signs, and P2Flux sends the transaction. Without it the response describes the customer's own `approve()`, as before."
                   }
                 }
               }
@@ -642,6 +651,15 @@
                   },
                   "amount": {
                     "$ref": "#/components/schemas/Amount"
+                  },
+                  "gas_payment_mode": {
+                    "type": "string",
+                    "enum": [
+                      "native",
+                      "payment_token"
+                    ],
+                    "default": "native",
+                    "description": "How the buyer pays the chain's network fee. Omit for `native`: the buyer sends the transaction and pays gas in the chain's own currency, exactly as every integration written before this field existed. With `payment_token` the buyer needs none of that currency - P2Flux sends the transaction and the buyer reimburses the quoted network cost in the payment token, plus a flat gas-service fee (0.10 USDC). Ask `/v1/capabilities` first: an unsupported network or token is refused here with PAYMENT_TOKEN_GAS_UNSUPPORTED rather than after a customer has been sent to a checkout that cannot work."
                   }
                 },
                 "required": [
@@ -2082,6 +2100,291 @@
           }
         }
       }
+    },
+    "/v1/capabilities": {
+      "get": {
+        "operationId": "capabilities",
+        "summary": "What this deployment supports",
+        "tags": [
+          "One-time payments"
+        ],
+        "description": "Per network, token and operation: whether a buyer can pay without holding the chain's native currency. Read it before offering the option.\n\nArchitectural possibility is not support. A token that implements the right standards on a chain P2Flux has not deployed contracts to and tested is reported `false` here, and every request for it is refused deterministically.\n\nAlso answers POST with an empty body, because an SDK transport may be POST-only.",
+        "responses": {
+          "200": {
+            "description": "Capabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "capabilitiesPost",
+        "summary": "What this deployment supports (POST form)",
+        "tags": [
+          "One-time payments"
+        ],
+        "description": "Identical to the GET. Exists so a host whose HTTP client only makes POST requests - the WooCommerce plugin injects `wp_remote_post` - can still ask.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Capabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/sponsor": {
+      "post": {
+        "operationId": "sponsorPayment",
+        "summary": "Settle a payment the buyer funded with a signature",
+        "tags": [
+          "One-time payments"
+        ],
+        "description": "The buyer holds no native currency and has signed the token authorization the checkout showed them. P2Flux sends the transaction and takes the quoted network fee and the gas-service fee out of that same authorization - nothing is fronted on credit, and a transaction that fails moves no money at all.\n\n`status` of `CONFIRMING` means it is in flight. Ask `/v1/payments/verify` about the hash; do NOT call this again, because the buyer's authorization may already be spent.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "intent",
+                  "quote",
+                  "payer",
+                  "signature"
+                ],
+                "properties": {
+                  "intent": {
+                    "type": "string"
+                  },
+                  "quote": {
+                    "type": "string",
+                    "description": "The `p2gas1` token from `/v1/payments/resolve`."
+                  },
+                  "payer": {
+                    "type": "string",
+                    "description": "The wallet that signed. Must match the signature; the contract enforces it."
+                  },
+                  "signature": {
+                    "type": "string",
+                    "description": "65-byte token authorization signature."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Submitted or confirming",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SUBMITTED",
+                        "CONFIRMING"
+                      ]
+                    },
+                    "tx_hash": {
+                      "type": "string"
+                    },
+                    "reference": {
+                      "type": "string"
+                    },
+                    "network_fee_units": {
+                      "type": "string"
+                    },
+                    "gas_service_fee_units": {
+                      "type": "string"
+                    },
+                    "buyer_total_units": {
+                      "type": "string"
+                    },
+                    "block_number": {
+                      "type": "string"
+                    },
+                    "native_gas_spent_wei": {
+                      "type": "string",
+                      "description": "What the transaction actually cost P2Flux, for reconciliation. The buyer paid the quote, not this."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused before anything was spent. `error` names which of: `INVALID_INTENT`, `INTENT_EXPIRED`, `INVALID_GAS_QUOTE`, `PAYMENT_TOKEN_GAS_UNSUPPORTED`, `INSUFFICIENT_PAYMENT_TOKEN_FOR_GAS`, `INSUFFICIENT_BALANCE`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`PAYMENT_ALREADY_PROCESSED`, or `PAYMENT_TOKEN_GAS_QUOTE_EXPIRED` - requote and ask the buyer to sign again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`SPONSORED_TRANSACTION_FAILED`: broadcast and refused on chain. Nothing moved; retry with a fresh quote.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/allowances/restore/submit": {
+      "post": {
+        "operationId": "submitAllowanceRestore",
+        "summary": "Carry a signed allowance change onto the chain",
+        "tags": [
+          "Subscriptions"
+        ],
+        "description": "For a customer who holds no native currency. They signed two things - the allowance change and a bounded fee for the transaction that carries it - and P2Flux sends one call that does both. A change that cannot execute returns the fee, so nobody is charged for something that did not happen.\n\n`allowance_units` of `\"0\"` REMOVES the allowance, which stops collection. That is not a revocation of the recurring authorization: only the payer's own transaction to the recurring contract does that, and the two must be described separately to customers.\n\nNo gas-service fee is added here. A subscription already pays a fixed network fee on every collection.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "approve_token",
+                  "quote",
+                  "permit_signature",
+                  "network_fee_signature"
+                ],
+                "properties": {
+                  "approve_token": {
+                    "type": "string"
+                  },
+                  "quote": {
+                    "type": "string"
+                  },
+                  "permit_signature": {
+                    "type": "string"
+                  },
+                  "network_fee_signature": {
+                    "type": "string"
+                  },
+                  "allowance_units": {
+                    "type": "string",
+                    "description": "Defaults to what this subscription needs. `\"0\"` removes the allowance."
+                  },
+                  "permit_nonce": {
+                    "type": "string",
+                    "description": "What the wallet was told the token's permit counter was. Checked against the chain before anything is sent."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settled or confirming",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "SETTLED",
+                        "SPONSORSHIP_CONFIRMING"
+                      ]
+                    },
+                    "tx_hash": {
+                      "type": "string"
+                    },
+                    "network_fee_units": {
+                      "type": "string"
+                    },
+                    "allowance_units": {
+                      "type": "string"
+                    },
+                    "block_number": {
+                      "type": "string"
+                    },
+                    "native_gas_spent_wei": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`error` names which of: `INVALID_CANCEL_TOKEN`, `CANCEL_TOKEN_EXPIRED`, `INVALID_GAS_QUOTE`, `PAYMENT_TOKEN_GAS_UNSUPPORTED`, `INSUFFICIENT_PAYMENT_TOKEN_FOR_GAS`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`PAYMENT_TOKEN_GAS_QUOTE_EXPIRED`: the price the customer accepted has lapsed; requote and ask them to sign again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`SPONSORED_PERMIT_FAILED`: broadcast and refused on chain, or the permit nonce moved. Nothing moved; the customer's fee authorization is unspent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [],
@@ -2218,9 +2521,147 @@
           "RELAYER_TX_COST_TOO_HIGH",
           "RELAYER_BUDGET_EXCEEDED",
           "RELAYER_NOT_READY",
-          "RPC_BUSY"
+          "RPC_BUSY",
+          "PAYMENT_TOKEN_GAS_UNSUPPORTED",
+          "PAYMENT_TOKEN_GAS_UNAVAILABLE",
+          "PAYMENT_TOKEN_GAS_QUOTE_EXPIRED",
+          "PAYMENT_TOKEN_GAS_LIMIT_EXCEEDED",
+          "INVALID_GAS_QUOTE",
+          "INSUFFICIENT_PAYMENT_TOKEN_FOR_GAS",
+          "SPONSORED_TRANSACTION_FAILED",
+          "SPONSORED_PERMIT_FAILED",
+          "SPONSORSHIP_CONFIRMING"
         ],
         "description": "Every code this API can return. Stable identifiers - branch on these, never on the human-readable text or the HTTP status alone."
+      },
+      "NetworkFeeQuote": {
+        "type": "object",
+        "description": "A price for one sponsored operation, and how long it stands. `quoted_network_fee_units` is what the buyer accepts and pays - a price agreed before execution, never a measurement of the gas the transaction turns out to use. Requote when it expires; a stale quote cannot be executed by anyone, including P2Flux.",
+        "properties": {
+          "quoted_network_fee": {
+            "type": "string",
+            "example": "0.004000"
+          },
+          "quoted_network_fee_units": {
+            "type": "string",
+            "example": "4000"
+          },
+          "max_network_fee_units": {
+            "type": "string",
+            "description": "The ceiling this price may not exceed."
+          },
+          "gas_service_fee": {
+            "type": "string",
+            "example": "0.100000"
+          },
+          "gas_service_fee_units": {
+            "type": "string",
+            "description": "Flat P2Flux fee for the gas service. Zero outside one-time payments: a subscription already pays a fixed network fee on every collection."
+          },
+          "buyer_total": {
+            "type": "string"
+          },
+          "buyer_total_units": {
+            "type": "string"
+          },
+          "quoted_at": {
+            "type": "integer"
+          },
+          "expires_at": {
+            "type": "integer"
+          },
+          "quote": {
+            "type": "string",
+            "description": "Opaque `p2gas1` token. Hand it back unchanged; it is bound to this payment and cannot be spent on another."
+          }
+        }
+      },
+      "PaymentAccounting": {
+        "type": "object",
+        "description": "Every unit of a settled payment, read from the chain rather than recomputed from what someone said they would charge.",
+        "properties": {
+          "payment_units": {
+            "type": "string"
+          },
+          "payment_fee_units": {
+            "type": "string",
+            "description": "The P2Flux percentage fee, taken out of the amount. The merchant's net is smaller by this."
+          },
+          "network_fee_units": {
+            "type": "string",
+            "description": "The quoted network fee the buyer accepted. Zero in native mode."
+          },
+          "gas_service_fee_units": {
+            "type": "string"
+          },
+          "merchant_net_units": {
+            "type": "string"
+          },
+          "buyer_total_units": {
+            "type": "string"
+          },
+          "payer": {
+            "type": "string"
+          }
+        }
+      },
+      "Capabilities": {
+        "type": "object",
+        "properties": {
+          "chain_id": {
+            "type": "integer"
+          },
+          "network": {
+            "type": "string"
+          },
+          "native_currency": {
+            "type": "string"
+          },
+          "supported": {
+            "type": "boolean"
+          },
+          "tokens": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "address": {
+                  "type": "string"
+                },
+                "symbol": {
+                  "type": "string"
+                },
+                "decimals": {
+                  "type": "integer"
+                },
+                "gas_payment_modes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "native",
+                      "payment_token"
+                    ]
+                  }
+                },
+                "gas_service_fee_units": {
+                  "type": "string"
+                },
+                "operations": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "description": "one_time_payment, subscription_signup, allowance_restore, allowance_removal."
+                },
+                "zero_native_revoke": {
+                  "type": "boolean",
+                  "description": "Always false: revoking a recurring authorization is the payer's own transaction, by the contract's design. Removing an allowance stops collection and is a different act."
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
