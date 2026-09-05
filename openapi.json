@@ -835,6 +835,10 @@
                     "as_of_block": {
                       "type": "string",
                       "description": "Only on a miss. The head this answer was computed at."
+                    },
+                    "settled_outside_intent_contract": {
+                      "$ref": "#/components/schemas/Address",
+                      "description": "Only on a miss, for a `payment_token` intent whose terms were paid by hand through the original splitter. Not a settlement of this intent - verification holds an intent to the contract it names - but the merchant may hold the money, so the address is named for support."
                     }
                   }
                 },
@@ -1616,6 +1620,31 @@
                   },
                   "signature": {
                     "$ref": "#/components/schemas/Signature"
+                  },
+                  "sponsorship": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "quote",
+                      "permit_signature",
+                      "network_fee_signature"
+                    ],
+                    "description": "For a customer with no native currency: the two extra signatures from `resolve`. The capability is minted first - proving the authorization costs nothing - and then P2Flux sends one transaction that collects the quoted fee and sets the allowance. Absent for every integration that existed before this did.",
+                    "properties": {
+                      "quote": {
+                        "$ref": "#/components/schemas/Token"
+                      },
+                      "permit_signature": {
+                        "$ref": "#/components/schemas/Signature"
+                      },
+                      "network_fee_signature": {
+                        "$ref": "#/components/schemas/Signature"
+                      },
+                      "permit_nonce": {
+                        "type": "string",
+                        "description": "What the wallet was told the token's permit counter was. Checked against the chain before anything is sent."
+                      }
+                    }
                   }
                 },
                 "required": [
@@ -1649,6 +1678,39 @@
                     },
                     "end": {
                       "type": "integer"
+                    },
+                    "sponsorship": {
+                      "type": "object",
+                      "description": "Only when `sponsorship` was sent. The subscription exists regardless of this outcome: a sponsorship that fails leaves the capability valid and the allowance to be set from the restore flow or the customer's own wallet. `ALREADY_SETTLED` is a repeat of a request whose allowance was set the first time. `FAILED` carries the `code` and its details.",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "SETTLED",
+                            "SPONSORSHIP_CONFIRMING",
+                            "ALREADY_SETTLED",
+                            "FAILED"
+                          ]
+                        },
+                        "tx_hash": {
+                          "type": "string"
+                        },
+                        "network_fee_units": {
+                          "type": "string"
+                        },
+                        "allowance_units": {
+                          "type": "string"
+                        },
+                        "block_number": {
+                          "type": "string"
+                        },
+                        "native_gas_spent_wei": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "$ref": "#/components/schemas/ErrorCode"
+                        }
+                      }
                     }
                   }
                 }
@@ -1696,6 +1758,18 @@
                 "properties": {
                   "setup_token": {
                     "$ref": "#/components/schemas/Token"
+                  },
+                  "gas_payment_mode": {
+                    "type": "string",
+                    "enum": [
+                      "native",
+                      "payment_token"
+                    ],
+                    "description": "Optional. `payment_token` with `payer` prices the allowance transaction P2Flux would send for a customer holding no native currency, and returns the two messages they sign. Absent means the customer approves from their own wallet, exactly as before."
+                  },
+                  "payer": {
+                    "$ref": "#/components/schemas/Address",
+                    "description": "Required with `gas_payment_mode: payment_token`: the permit is priced for, and signed by, this wallet."
                   }
                 },
                 "required": [
@@ -1801,6 +1875,25 @@
                         "null"
                       ],
                       "description": "approve_units as a decimal USDC string; null means unlimited."
+                    },
+                    "gas_payment_mode": {
+                      "type": "string",
+                      "enum": [
+                        "payment_token"
+                      ],
+                      "description": "Present only when the signup was priced for a customer with no native currency."
+                    },
+                    "sponsorship_quote": {
+                      "type": "object",
+                      "description": "With `payment_token`: the quoted network fee, its expiry, and the `p2gas1` quote to hand back to `finalize`."
+                    },
+                    "allowance_permit": {
+                      "type": "object",
+                      "description": "With `payment_token`: the EIP-2612 permit the customer signs. Spender is the recurring contract; value is the subscription's allowance mode."
+                    },
+                    "network_fee_authorization": {
+                      "type": "object",
+                      "description": "With `payment_token`: the token authorization for the quoted fee. Expires with the quote."
                     }
                   }
                 }
@@ -2259,7 +2352,7 @@
             }
           },
           "400": {
-            "description": "Refused before anything was spent. `error` names which of: `INVALID_INTENT`, `INTENT_EXPIRED`, `INVALID_GAS_QUOTE`, `PAYMENT_TOKEN_GAS_UNSUPPORTED`, `INSUFFICIENT_PAYMENT_TOKEN_FOR_GAS`, `INSUFFICIENT_BALANCE`.",
+            "description": "Refused before anything was spent. `error` names which of: `INVALID_INTENT`, `INTENT_EXPIRED`, `INVALID_GAS_QUOTE`, `PAYMENT_TOKEN_GAS_UNSUPPORTED`, `INSUFFICIENT_PAYMENT_TOKEN_FOR_GAS`, `INSUFFICIENT_BALANCE`, `PAYMENT_TOKEN_GAS_UNAVAILABLE` (`cause: SPONSORSHIP_PAUSED` - too many sponsored transactions reverted on chain in the last hour; offer native gas and retry after `retry_after`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -2269,7 +2362,17 @@
             }
           },
           "409": {
-            "description": "`PAYMENT_ALREADY_PROCESSED`, or `PAYMENT_TOKEN_GAS_QUOTE_EXPIRED` - requote and ask the buyer to sign again.",
+            "description": "`PAYMENT_ALREADY_PROCESSED`, or `PAYMENT_TOKEN_GAS_QUOTE_EXPIRED` - requote and ask the buyer to sign again. A quote is also refused inside its last 20 seconds, because the token would reject it in the block that includes it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`: this payer has reached the day's broadcasts for this operation (`SPONSORED_ATTEMPTS_PER_PAYER_24H`, default 5). Counted only when a transaction is actually sent; refusals before that are free.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2327,7 +2430,10 @@
                   },
                   "allowance_units": {
                     "type": "string",
-                    "description": "Defaults to what this subscription needs. `\"0\"` removes the allowance."
+                    "enum": [
+                      "0"
+                    ],
+                    "description": "Only `\"0\"` is accepted, and it REMOVES the allowance (stops collection - not a revocation of the recurring authorization). Absent means \"restore what this subscription needs\": the allowance is the subscription's own, never a number the browser chooses."
                   },
                   "permit_nonce": {
                     "type": "string",
@@ -2374,7 +2480,7 @@
             }
           },
           "400": {
-            "description": "`error` names which of: `INVALID_CANCEL_TOKEN`, `CANCEL_TOKEN_EXPIRED`, `INVALID_GAS_QUOTE`, `PAYMENT_TOKEN_GAS_UNSUPPORTED`, `INSUFFICIENT_PAYMENT_TOKEN_FOR_GAS`.",
+            "description": "`error` names which of: `INVALID_CANCEL_TOKEN`, `CANCEL_TOKEN_EXPIRED`, `INVALID_GAS_QUOTE`, `PAYMENT_TOKEN_GAS_UNSUPPORTED`, `INSUFFICIENT_PAYMENT_TOKEN_FOR_GAS`, `PAYMENT_TOKEN_GAS_UNAVAILABLE` (`cause: SPONSORSHIP_PAUSED` - too many sponsored transactions reverted on chain in the last hour; offer native gas and retry after `retry_after`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -2384,7 +2490,17 @@
             }
           },
           "409": {
-            "description": "`PAYMENT_TOKEN_GAS_QUOTE_EXPIRED`: the price the customer accepted has lapsed; requote and ask them to sign again.",
+            "description": "`PAYMENT_TOKEN_GAS_QUOTE_EXPIRED`: the price the customer accepted has lapsed; requote and ask them to sign again. A quote is also refused inside its last 20 seconds, because the token would reject it in the block that includes it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`: this payer has reached the day's broadcasts for this operation (`SPONSORED_ATTEMPTS_PER_PAYER_24H`, default 5). Counted only when a transaction is actually sent; refusals before that are free.",
             "content": {
               "application/json": {
                 "schema": {
