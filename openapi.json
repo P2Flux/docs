@@ -1681,7 +1681,7 @@
                     },
                     "sponsorship": {
                       "type": "object",
-                      "description": "Only when `sponsorship` was sent. The subscription exists regardless of this outcome: a sponsorship that fails leaves the capability valid and the allowance to be set from the restore flow or the customer's own wallet. `ALREADY_SETTLED` is a repeat of a request whose allowance was set the first time. `FAILED` carries the `code` and its details.",
+                      "description": "Only when `sponsorship` was sent. The subscription exists regardless of this outcome: a sponsorship that fails leaves the capability valid and the allowance to be set from the restore flow or the customer's own wallet. `ALREADY_SETTLED` is a repeat of a request whose allowance was set the first time - confirmed against the chain, because the token reports a spent authorization and one the customer cancelled with the same words, and only one of those means the setup is done. `FAILED` carries the `code` and its details.",
                       "properties": {
                         "status": {
                           "type": "string",
