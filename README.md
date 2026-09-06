@@ -76,7 +76,7 @@ The [contracts](contracts.md) page lists the addresses on both networks.
 | [contracts](https://github.com/P2Flux/contracts) | Solidity sources, ABIs, EIP-712 definitions, chain constants |
 
 Neither SDK is published to npm or Packagist — install from a pinned git tag
-(`@p2flux/sdk` v0.7.0, `p2flux/p2flux-php` v0.7.0 — one version number for both; v0.7.0 adds
+(`@p2flux/sdk` v0.7.1, `p2flux/p2flux-php` v0.7.1 — one version number for both; the 0.7 line adds
 `gas_payment_mode`, capability discovery, sponsored accounting, charge recovery and allowance restore). Both SDKs cover the complete public V1
 merchant/server surface — the same 18 operations, verified by a checked-in parity test in each
 repository. The [API reference](https://p2flux.com/docs/api/) describes the HTTP endpoints
