@@ -115,6 +115,13 @@
                     ],
                     "default": "native",
                     "description": "With `payment_token` the response also carries a price and the two messages the customer signs, and P2Flux sends the transaction. Without it the response describes the customer's own `approve()`, as before."
+                  },
+                  "allowance_units": {
+                    "type": "string",
+                    "enum": [
+                      "0"
+                    ],
+                    "description": "Only `\"0\"` is accepted, and it prices a REMOVAL of the allowance instead of a restore. The quote returned is bound to that operation: a removal quote is refused on a restore submit and vice versa. Absent means \"restore what this subscription needs\"."
                   }
                 }
               }
@@ -1788,8 +1795,28 @@
               }
             }
           },
+          "429": {
+            "description": "`RATE_LIMITED`: this payer has reached the day's sponsored broadcasts (`SPONSORED_ATTEMPTS_PER_PAYER_24H`). `CONCURRENCY_LIMIT` with `cause: PAYER_UNRESOLVED`: a previous sponsored transaction of this payer is still unresolved on chain; retry after it settles. Only with `sponsorship`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Refused. `error` names which of: `RPC_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`PAYMENT_TOKEN_GAS_UNAVAILABLE` with `cause: SPONSORSHIP_PAUSED` (the relayer's own infrastructure has been failing and the mode is paused for everyone for up to an hour) or `cause: PAYER_REVERTS` (this wallet's sponsored transactions reverted on chain today and it is refused sponsorship for a day). `RELAYER_NOT_READY`: the relayer cannot record the operation durably. Only with `sponsorship`; the native path is unaffected.",
             "content": {
               "application/json": {
                 "schema": {
