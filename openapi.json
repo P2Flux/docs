@@ -857,6 +857,30 @@
                     "settled_outside_intent_contract": {
                       "$ref": "#/components/schemas/Address",
                       "description": "Only on a miss, for a `payment_token` intent whose terms were paid by hand through the original splitter. Not a settlement of this intent - verification holds an intent to the contract it names - but the merchant may hold the money, so the address is named for support."
+                    },
+                    "block_number": {
+                      "type": "string",
+                      "description": "On a found, valid payment: as `/v1/payments/verify` returns it."
+                    },
+                    "block_hash": {
+                      "$ref": "#/components/schemas/Bytes32",
+                      "description": "On a found, valid payment."
+                    },
+                    "gas_payment_mode": {
+                      "type": "string",
+                      "enum": [
+                        "native",
+                        "payment_token"
+                      ],
+                      "description": "On a found, valid payment: how its network fee was paid."
+                    },
+                    "accounting": {
+                      "$ref": "#/components/schemas/PaymentAccounting",
+                      "description": "On a found, valid payment: the same accounting `/v1/payments/verify` returns."
+                    },
+                    "settlement_receipt": {
+                      "type": "string",
+                      "description": "On a found, valid payment: the same sealed receipt `/v1/payments/verify` issues, redeemable there."
                     }
                   }
                 },
@@ -1086,7 +1110,14 @@
                       "type": "object",
                       "required": [
                         "valid",
-                        "tx_hash"
+                        "tx_hash",
+                        "reference",
+                        "amount",
+                        "block_number",
+                        "block_hash",
+                        "gas_payment_mode",
+                        "accounting",
+                        "settlement_receipt"
                       ],
                       "properties": {
                         "valid": {
@@ -1106,6 +1137,18 @@
                         },
                         "block_hash": {
                           "$ref": "#/components/schemas/Bytes32"
+                        },
+                        "gas_payment_mode": {
+                          "type": "string",
+                          "enum": [
+                            "native",
+                            "payment_token"
+                          ],
+                          "description": "How the network fee of this payment was paid: `native` by the buyer's own ETH, `payment_token` out of the buyer's USDC through a P2Flux-sponsored transaction. Always present on a valid verdict, on both the full verification and the settlement-receipt fast path."
+                        },
+                        "accounting": {
+                          "$ref": "#/components/schemas/PaymentAccounting",
+                          "description": "Every unit of the payment as it settled on chain. Always present on a valid verdict - the settlement-receipt fast path returns the accounting sealed at the original verification, so the two paths answer identically."
                         },
                         "settlement_receipt": {
                           "type": "string",
@@ -2809,6 +2852,20 @@
                     "type": "boolean"
                   },
                   "description": "one_time_payment, subscription_signup, allowance_restore, allowance_removal."
+                },
+                "sponsor_contracts": {
+                  "type": "object",
+                  "description": "The contract that carries each sponsored operation, or null where the operation is not offered. A checkout compares the fee recipient of any sponsorship offer against this before asking the buyer to sign.",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/Address"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
                 },
                 "zero_native_revoke": {
                   "type": "boolean",
