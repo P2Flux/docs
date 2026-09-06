@@ -44,9 +44,28 @@ accident — you keep your own `order → reference` mapping.
 | Production | `api.p2flux.com` | `pay.p2flux.com` | Base Mainnet (8453) |
 
 The two are complete, non-interchangeable stacks — a capability issued by one is refused by the
-other, by construction. **Integrate against the test environment.** Production exists and is
-**pre-launch: not open yet, which is not an outage**. Live state is on the
-[status page](https://p2flux.com/status.html).
+other, by construction. **Integrate against the test environment first.** Production is live on Base
+Mainnet with real USDC. Live state is on the [status page](https://p2flux.com/status.html).
+
+## No ETH required
+
+A buyer holding USDC and no ETH can pay, start a subscription, and repair or remove an allowance on
+Base Mainnet and Base Sepolia. With `gas_payment_mode: 'payment_token'` the buyer signs a token
+authorization instead of sending a transaction; the P2Flux relayer sends it and pays the Base gas in
+ETH, and the buyer pays the quoted network fee in USDC inside the same transaction. USDC is never
+converted to ETH, nothing is fronted on credit, and settlement stays direct: the merchant's share goes
+from the buyer's wallet to the merchant's wallet in that one transaction.
+
+- `GET /v1/capabilities` reports, per network and token, which operations are available and which
+  contract carries each (`sponsor_contracts`), so an integration offers only what exists.
+- `/v1/payments/verify` and `/v1/payments/recover` return `gas_payment_mode` and an `accounting`
+  block naming every unit: `payment_units`, `payment_fee_units`, `network_fee_units`,
+  `fixed_network_fee_units`, `merchant_net_units`, `buyer_total_units`, `payer`.
+- Per buyer wallet, sponsored transactions are limited to 10 in any rolling hour and 20 in any
+  rolling day across all merchants and operations; a refused attempt answers `RATE_LIMITED` with
+  `retry_after` and costs nothing. Recurring collections are not counted.
+
+The [contracts](contracts.md) page lists the addresses on both networks.
 
 ## SDKs
 
@@ -56,8 +75,9 @@ other, by construction. **Integrate against the test environment.** Production e
 | [sdk-php](https://github.com/P2Flux/sdk-php) | PHP 8.1+, injectable transport |
 | [contracts](https://github.com/P2Flux/contracts) | Solidity sources, ABIs, EIP-712 definitions, chain constants |
 
-Neither SDK is published to npm or Packagist yet — install from a pinned git tag
-(`@p2flux/sdk` v0.6.0, `p2flux/p2flux-php` v0.6.0 — one version number for both). Both SDKs cover the complete public V1
+Neither SDK is published to npm or Packagist — install from a pinned git tag
+(`@p2flux/sdk` v0.7.0, `p2flux/p2flux-php` v0.7.0 — one version number for both; v0.7.0 adds
+`gas_payment_mode`, capability discovery, sponsored accounting, charge recovery and allowance restore). Both SDKs cover the complete public V1
 merchant/server surface — the same 18 operations, verified by a checked-in parity test in each
 repository. The [API reference](https://p2flux.com/docs/api/) describes the HTTP endpoints
 themselves.

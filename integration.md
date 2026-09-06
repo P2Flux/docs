@@ -8,8 +8,8 @@ Start there:
 | | |
 |---|---|
 | [Quick start](https://p2flux.com/docs/quickstart.html) | one USDC payment, end to end |
-| [Environments](https://p2flux.com/docs/networks.html) | Base Sepolia today, Base Mainnet pre-launch |
-| [Payments](https://p2flux.com/docs/payments.html) | one-time payments, verification, lost-callback recovery |
+| [Environments](https://p2flux.com/docs/networks.html) | Base Sepolia (test) and Base Mainnet (production, live) — addresses, assets, confirmation policy |
+| [Payments](https://p2flux.com/docs/payments.html) | one-time payments, `gas_payment_mode` (network fee paid in USDC, no ETH required), verification, lost-callback recovery |
 | [Subscriptions](https://p2flux.com/docs/subscriptions.html) | authorization, charging, cancellation |
 | [Refunds](https://p2flux.com/docs/refunds.html) | merchant→buyer transfers, and the one-refund rule |
 | [Errors](https://p2flux.com/docs/errors.html) | every result code and what to do about it |
