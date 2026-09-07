@@ -75,9 +75,9 @@ The [contracts](contracts.md) page lists the addresses on both networks.
 | [sdk-php](https://github.com/P2Flux/sdk-php) | PHP 8.1+, injectable transport |
 | [contracts](https://github.com/P2Flux/contracts) | Solidity sources, ABIs, EIP-712 definitions, chain constants |
 
-Neither SDK is published to npm or Packagist — install from a pinned git tag
-(`@p2flux/sdk` v0.7.1, `p2flux/p2flux-php` v0.7.1 — one version number for both; the 0.7 line adds
-`gas_payment_mode`, capability discovery, sponsored accounting, charge recovery and allowance restore). Both SDKs cover the complete public V1
+The PHP SDK is on Packagist — `composer require p2flux/sdk-php` (v0.7.2). The JS SDK is not on npm
+yet: install `@p2flux/sdk` v0.7.1 from a pinned git tag. The 0.7 line adds `gas_payment_mode`,
+capability discovery, sponsored accounting, charge recovery and allowance restore. Both SDKs cover the complete public V1
 merchant/server surface — the same 18 operations, verified by a checked-in parity test in each
 repository. The [API reference](https://p2flux.com/docs/api/) describes the HTTP endpoints
 themselves.
