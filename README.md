@@ -13,6 +13,13 @@ on-chain layer.
 | [Contracts](contracts.md) | what the on-chain layer does and where it lives |
 | [Guides](https://p2flux.com/docs/) | quick start, environments, payments, subscriptions, refunds, recovery, errors, SDKs |
 
+Installing an official SDK is optional; the API is plain HTTPS. If you want one:
+
+```bash
+composer require p2flux/sdk-php   # PHP
+npm install @p2flux/sdk           # JavaScript / TypeScript
+```
+
 ## What P2Flux is
 
 Payments move **buyer wallet → recipient wallet**, with the P2Flux fee split out in the same
@@ -67,17 +74,48 @@ from the buyer's wallet to the merchant's wallet in that one transaction.
 
 The [contracts](contracts.md) page lists the addresses on both networks.
 
-## SDKs
+## Official SDKs
 
-| | |
-|---|---|
-| [sdk-js](https://github.com/P2Flux/sdk-js) | JavaScript/TypeScript, dependency-free |
-| [sdk-php](https://github.com/P2Flux/sdk-php) | PHP 8.1+, injectable transport |
-| [contracts](https://github.com/P2Flux/contracts) | Solidity sources, ABIs, EIP-712 definitions, chain constants |
+Two official clients, each published on the registry its language already uses. GitHub is the
+source; the registry is the install route.
 
-Both SDKs are published: `npm install @p2flux/sdk` (v0.7.2) and `composer require p2flux/sdk-php`
-(v0.7.3). The 0.7 line adds `gas_payment_mode`, capability discovery, sponsored accounting, charge
-recovery and allowance restore. Both SDKs cover the complete public V1
-merchant/server surface — the same 18 operations, verified by a checked-in parity test in each
-repository. The [API reference](https://p2flux.com/docs/api/) describes the HTTP endpoints
-themselves.
+### PHP
+
+```bash
+composer require p2flux/sdk-php
+```
+
+PHP 8.1+, no runtime dependencies, injectable transport.
+[Packagist](https://packagist.org/packages/p2flux/sdk-php) ·
+[GitHub](https://github.com/P2Flux/sdk-php) ·
+[Getting started](https://github.com/P2Flux/sdk-php/blob/main/docs/getting-started.md) ·
+[Payment flow](https://github.com/P2Flux/sdk-php/blob/main/docs/payment-flow.md) ·
+[Network fee in USDC](https://github.com/P2Flux/sdk-php/blob/main/docs/network-fee-in-usdc.md) ·
+[Examples](https://github.com/P2Flux/sdk-php/tree/main/examples) ·
+[Testing](https://github.com/P2Flux/sdk-php/blob/main/docs/testing.md) ·
+[Production checklist](https://github.com/P2Flux/sdk-php/blob/main/docs/production-checklist.md)
+
+### JavaScript / TypeScript
+
+```bash
+npm install @p2flux/sdk
+```
+
+Node 18+ or any runtime with a global `fetch`. ESM only, types included, no runtime dependencies.
+[npm](https://www.npmjs.com/package/@p2flux/sdk) ·
+[GitHub](https://github.com/P2Flux/sdk-js) ·
+[Getting started](https://github.com/P2Flux/sdk-js/blob/main/docs/getting-started.md) ·
+[Payment flow](https://github.com/P2Flux/sdk-js/blob/main/docs/payment-flow.md) ·
+[Network fee in USDC](https://github.com/P2Flux/sdk-js/blob/main/docs/network-fee-in-usdc.md) ·
+[Examples](https://github.com/P2Flux/sdk-js/tree/main/examples) ·
+[Testing](https://github.com/P2Flux/sdk-js/blob/main/docs/testing.md) ·
+[Production checklist](https://github.com/P2Flux/sdk-js/blob/main/docs/production-checklist.md)
+
+Both are **server-side** clients: they create payments, verify settlements and charge subscriptions
+from your backend. The buyer's wallet experience is the hosted checkout, and what a browser reports
+back is a claim — your server's verification is what marks an order paid.
+
+Both cover the complete public V1 merchant/server surface, verified by a checked-in parity test in
+each repository. The [API reference](https://p2flux.com/docs/api/) describes the HTTP endpoints
+themselves, and [contracts](https://github.com/P2Flux/contracts) carries the Solidity sources, ABIs,
+EIP-712 definitions and chain constants.

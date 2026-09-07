@@ -13,7 +13,7 @@ Start there:
 | [Subscriptions](https://p2flux.com/docs/subscriptions.html) | authorization, charging, cancellation |
 | [Refunds](https://p2flux.com/docs/refunds.html) | merchant→buyer transfers, and the one-refund rule |
 | [Errors](https://p2flux.com/docs/errors.html) | every result code and what to do about it |
-| [SDKs](https://p2flux.com/docs/sdks.html) | JS and PHP |
+| [SDKs](https://p2flux.com/docs/sdks.html) | the official clients: `composer require p2flux/sdk-php`, `npm install @p2flux/sdk` |
 | [API reference](https://p2flux.com/docs/api/) | the interactive contract, from [`openapi.json`](openapi.json) |
 
 The version of this file that used to live here described eight SDK calls and thirteen result codes.
