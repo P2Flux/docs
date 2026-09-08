@@ -18,6 +18,7 @@ Installing an official SDK is optional; the API is plain HTTPS. If you want one:
 ```bash
 composer require p2flux/sdk-php   # PHP
 npm install @p2flux/sdk           # JavaScript / TypeScript
+composer require p2flux/laravel   # Laravel
 ```
 
 ## What P2Flux is
@@ -111,7 +112,26 @@ Node 18+ or any runtime with a global `fetch`. ESM only, types included, no runt
 [Testing](https://github.com/P2Flux/sdk-js/blob/main/docs/testing.md) ·
 [Production checklist](https://github.com/P2Flux/sdk-js/blob/main/docs/production-checklist.md)
 
-Both are **server-side** clients: they create payments, verify settlements and charge subscriptions
+### Framework integrations
+
+```bash
+composer require p2flux/laravel
+```
+
+`p2flux/laravel` (v0.1.1) wires the PHP SDK into Laravel 12 and 13: container binding, publishable
+config, an optional facade. It installs the SDK for you and adds no routes, migrations, models or
+scheduler.
+[Packagist](https://packagist.org/packages/p2flux/laravel) ·
+[GitHub](https://github.com/P2Flux/laravel) ·
+[Getting started](https://github.com/P2Flux/laravel/blob/main/docs/getting-started.md) ·
+[Payments](https://github.com/P2Flux/laravel/blob/main/docs/payments.md) ·
+[Network fee in USDC](https://github.com/P2Flux/laravel/blob/main/docs/network-fee-in-usdc.md) ·
+[Subscriptions](https://github.com/P2Flux/laravel/blob/main/docs/subscriptions.md) ·
+[Testing](https://github.com/P2Flux/laravel/blob/main/docs/testing.md) ·
+[Production checklist](https://github.com/P2Flux/laravel/blob/main/docs/production-checklist.md) ·
+[Examples](https://github.com/P2Flux/laravel/tree/main/examples)
+
+Both SDKs are **server-side** clients: they create payments, verify settlements and charge subscriptions
 from your backend. The buyer's wallet experience is the hosted checkout, and what a browser reports
 back is a claim — your server's verification is what marks an order paid.
 
