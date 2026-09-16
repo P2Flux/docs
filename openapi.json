@@ -1796,7 +1796,7 @@
             }
           },
           "429": {
-            "description": "`RATE_LIMITED`: this payer has reached the day's sponsored broadcasts (`SPONSORED_ATTEMPTS_PER_PAYER_24H`). `CONCURRENCY_LIMIT` with `cause: PAYER_UNRESOLVED`: a previous sponsored transaction of this payer is still unresolved on chain; retry after it settles. Only with `sponsorship`.",
+            "description": "`RATE_LIMITED` with `cause: PAYER_EMERGENCY_LIMIT`: this wallet reached the emergency ceiling on sponsored broadcasts (hundreds in an hour) - a sanity limit, never reached by ordinary use; successful sponsored transactions are not otherwise limited. `RATE_LIMITED` without a cause: this wallet's simulations kept failing this hour. `CONCURRENCY_LIMIT` with `cause: PAYER_UNRESOLVED`: a previous sponsored transaction of this payer is still unresolved on chain; retry after it settles. Only with `sponsorship`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1816,7 +1816,7 @@
             }
           },
           "503": {
-            "description": "`PAYMENT_TOKEN_GAS_UNAVAILABLE` with `cause: SPONSORSHIP_PAUSED` (the relayer's own infrastructure has been failing and the mode is paused for everyone for up to an hour) or `cause: PAYER_REVERTS` (this wallet's sponsored transactions reverted on chain today and it is refused sponsorship for a day). `RELAYER_NOT_READY`: the relayer cannot record the operation durably. Only with `sponsorship`; the native path is unaffected.",
+            "description": "`PAYMENT_TOKEN_GAS_UNAVAILABLE` with `cause: SPONSORSHIP_PAUSED` (the relayer's own infrastructure has been failing and the mode is paused for everyone for up to an hour), `cause: PAYER_REVERTS` (this wallet's sponsored transactions reverted on chain today and it is refused sponsorship for a day) or `cause: RELAYER_ETH_LOW` (the relayer is below its warning balance; renewals continue, sponsored work waits for a top-up). `RELAYER_BUDGET_EXCEEDED` with `cause: SPONSORED_SHARE`: sponsored work has used its share of the relayer's rolling budget; the rest is kept for recurring collections. `RELAYER_NOT_READY`: the relayer cannot record the operation durably. Only with `sponsorship`; the native path is unaffected, and a wallet holding ETH can pay the network fee itself.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2460,7 +2460,7 @@
             }
           },
           "429": {
-            "description": "`RATE_LIMITED`: this payer has reached the day's broadcasts for this operation (`SPONSORED_ATTEMPTS_PER_PAYER_24H`, default 5). Counted only when a transaction is actually sent; refusals before that are free.",
+            "description": "`RATE_LIMITED` with `cause: PAYER_EMERGENCY_LIMIT`: this wallet reached the emergency ceiling on sponsored broadcasts, a sanity limit far above ordinary use (successful sponsored transactions are not otherwise limited); without a cause, this wallet's simulations kept failing this hour. Refusals cost nothing.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2588,7 +2588,7 @@
             }
           },
           "429": {
-            "description": "`RATE_LIMITED`: this payer has reached the day's broadcasts for this operation (`SPONSORED_ATTEMPTS_PER_PAYER_24H`, default 5). Counted only when a transaction is actually sent; refusals before that are free.",
+            "description": "`RATE_LIMITED` with `cause: PAYER_EMERGENCY_LIMIT`: this wallet reached the emergency ceiling on sponsored broadcasts, a sanity limit far above ordinary use (successful sponsored transactions are not otherwise limited); without a cause, this wallet's simulations kept failing this hour. Refusals cost nothing.",
             "content": {
               "application/json": {
                 "schema": {
