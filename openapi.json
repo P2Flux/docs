@@ -2460,7 +2460,7 @@
             }
           },
           "429": {
-            "description": "`RATE_LIMITED` with `cause: PAYER_EMERGENCY_LIMIT`: this wallet reached the emergency ceiling on sponsored broadcasts, a sanity limit far above ordinary use (successful sponsored transactions are not otherwise limited); without a cause, this wallet's simulations kept failing this hour. Refusals cost nothing.",
+            "description": "`RATE_LIMITED` with `cause: PAYER_EMERGENCY_LIMIT`: this wallet reached the emergency ceiling on sponsored broadcasts, a sanity limit far above ordinary use (successful sponsored transactions are not otherwise limited); without a cause, this wallet's simulations kept failing this hour. Refusals cost nothing. `MERCHANT_SPONSORED_LIMIT_EXCEEDED`: this payment's merchant (its payout wallet) has used what one merchant may take of the capacity for paying the network fee in USDC. It concerns that merchant only and says nothing about anyone else; retry later, or create the payment with `gas_payment_mode: native`, which is unaffected.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2745,6 +2745,7 @@
           "RELAYER_TX_COST_TOO_HIGH",
           "RELAYER_BUDGET_EXCEEDED",
           "RELAYER_NOT_READY",
+          "MERCHANT_SPONSORED_LIMIT_EXCEEDED",
           "RPC_BUSY",
           "PAYMENT_TOKEN_GAS_UNSUPPORTED",
           "PAYMENT_TOKEN_GAS_UNAVAILABLE",
