@@ -2810,6 +2810,157 @@
           }
         }
       }
+    },
+    "/x402/paywall/challenge": {
+      "post": {
+        "operationId": "x402PaywallChallenge",
+        "summary": "What an agent must pay (paywall)",
+        "tags": [
+          "x402 (AI agents)"
+        ],
+        "description": "For sellers that do not run an x402 library - the P2Flux Agent Paywall WordPress plugin, a PHP app. The seller sends its wallet and price; the answer is the x402 requirement an agent signs: USDC on this network, to the seller's vault, with the token's own signing domain. No chain read; reuse it for `ttl` seconds.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "recipient",
+                  "price"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "recipient": {
+                    "$ref": "#/components/schemas/Address"
+                  },
+                  "price": {
+                    "type": "string",
+                    "pattern": "^\\d{1,12}(\\.\\d{1,6})?$",
+                    "description": "Price in USDC as a decimal string, 0.01 or more.",
+                    "examples": [
+                      "0.05"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Requirement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/X402PaywallChallenge"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_REQUEST`: `recipient` is not an address; `AMOUNT_OUT_OF_BOUNDS`: price below 0.01 or above the maximum.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/x402/paywall/redeem": {
+      "post": {
+        "operationId": "x402PaywallRedeem",
+        "summary": "Settle an agent's payment (paywall)",
+        "tags": [
+          "x402 (AI agents)"
+        ],
+        "description": "Pass the agent's `PAYMENT-SIGNATURE` header unread, with the seller's own wallet and price. The API rebuilds the requirement from those - nothing the agent sends decides what is owed or to whom - and settles it through the facilitator. A payment is reported paid ONCE: the same header again is refused with `invalid_transaction_state`. A settlement still being mined is waited for once; if it is still pending the answer names the transaction and the agent's next request with the same header is paid. Refusals are 200 with `paid: false`; every settlement carries the P2Flux fee, max(1%, 0.003 USDC).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "recipient",
+                  "price",
+                  "payment"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "recipient": {
+                    "$ref": "#/components/schemas/Address"
+                  },
+                  "price": {
+                    "type": "string",
+                    "pattern": "^\\d{1,12}(\\.\\d{1,6})?$",
+                    "description": "Price in USDC as a decimal string, 0.01 or more.",
+                    "examples": [
+                      "0.05"
+                    ]
+                  },
+                  "payment": {
+                    "type": "string",
+                    "maxLength": 16384,
+                    "description": "The agent's PAYMENT-SIGNATURE header, as received."
+                  },
+                  "resource": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "The URL the agent asked for. Informational."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paid, or why not",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/X402PaywallRedeemed"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_REQUEST` / `AMOUNT_OUT_OF_BOUNDS`: the seller's wallet or price is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [],
@@ -3326,6 +3477,69 @@
                 }
               }
             }
+          }
+        }
+      },
+      "X402PaywallChallenge": {
+        "type": "object",
+        "required": [
+          "x402Version",
+          "accepts",
+          "ttl"
+        ],
+        "properties": {
+          "x402Version": {
+            "type": "integer",
+            "const": 2
+          },
+          "accepts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "x402 payment requirements. Put them, with `resource`, in the base64 JSON of the 402 answer's `PAYMENT-REQUIRED` header."
+          },
+          "ttl": {
+            "type": "integer",
+            "description": "Seconds the answer may be reused for the same wallet and price."
+          }
+        }
+      },
+      "X402PaywallRedeemed": {
+        "type": "object",
+        "required": [
+          "paid",
+          "network"
+        ],
+        "properties": {
+          "paid": {
+            "type": "boolean",
+            "description": "true: serve the content. false: answer 402 again."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why not paid - the x402 reason string (`invalid_transaction_state` = this payment was already used)."
+          },
+          "message": {
+            "type": "string"
+          },
+          "transaction": {
+            "type": "string",
+            "description": "The settlement transaction on Base; with `settlement_pending` the one still being mined."
+          },
+          "payer": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string",
+            "description": "USDC base units."
+          },
+          "network": {
+            "type": "string"
+          },
+          "payment_response": {
+            "type": "string",
+            "description": "Send as the `PAYMENT-RESPONSE` header with the content."
           }
         }
       }
