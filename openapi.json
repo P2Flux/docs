@@ -2705,7 +2705,7 @@
         "tags": [
           "x402 (AI agents)"
         ],
-        "description": "Re-verifies, then P2Flux's relayer settles the payment through P2FluxX402Splitter and pays the gas. `success: true` carries the transaction hash. `errorReason: \\\"settlement_pending\\\"` carries a real hash of a transaction still being mined: repeat the identical call once (the x402 middleware does) and it is resolved, never broadcast twice. A payment is reported settled ONCE: any further settle call for it - concurrent, later, or after the payment was settled by someone else - is refused with `errorReason: \"invalid_transaction_state\"`, so one payment can never buy two responses. A seller's first settlement always carries the fee (it deploys their vault). Refusals are 200 with `success: false`, an empty `transaction` and the network.",
+        "description": "Re-verifies, then P2Flux's relayer settles the payment through P2FluxX402Splitter and pays the gas. `success: true` carries the transaction hash. `errorReason: \\\"settlement_pending\\\"` carries a real hash of a transaction still being mined: repeat the identical call once (the x402 middleware does) and it is resolved, never broadcast twice. A payment is reported settled ONCE: any further settle call for it - concurrent, later, or after the payment was settled by someone else - is refused with `errorReason: \"invalid_transaction_state\"`, so one payment can never buy two responses. Every settlement carries the P2Flux fee, max(1%, 0.003 USDC) and never more than half the payment, paid out of the amount in the same transaction. Refusals are 200 with `success: false`, an empty `transaction` and the network.",
         "requestBody": {
           "required": true,
           "content": {
