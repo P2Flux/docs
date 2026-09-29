@@ -2653,7 +2653,7 @@
         "tags": [
           "x402 (AI agents)"
         ],
-        "description": "Called by the seller's x402 middleware with the payment the agent sent. Checks the request against the requirements, that `payTo` is the vault of `extra.p2flux.recipient`, every field of the signed authorization, the payer's balance and nonce, and simulates the exact settlement. A payment that would fail is answered 200 with `isValid: false` and the reason string the @x402/evm facilitator uses. Nothing is sent.",
+        "description": "Called by the seller's x402 middleware with the payment the agent sent. Checks the request against the requirements, that `payTo` is the vault of `extra.p2flux.recipient`, the signature (before anything is asked of the chain), every field of the signed authorization, the payer's balance and nonce, and simulates the exact settlement with the fee it would carry. A payment that would fail is answered 200 with `isValid: false` and the reason string the @x402/evm facilitator uses. Nothing is sent.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2705,7 +2705,7 @@
         "tags": [
           "x402 (AI agents)"
         ],
-        "description": "Re-verifies, then P2Flux's relayer settles the payment through P2FluxX402Splitter and pays the gas. `success: true` carries the transaction hash. `errorReason: \\\"settlement_pending\\\"` carries a real hash of a transaction still being mined: repeat the identical call once (the x402 middleware does) and it is resolved, never broadcast twice. A retry after the payment mined is answered from the chain. Refusals are 200 with `success: false`, an empty `transaction` and the network.",
+        "description": "Re-verifies, then P2Flux's relayer settles the payment through P2FluxX402Splitter and pays the gas. `success: true` carries the transaction hash. `errorReason: \\\"settlement_pending\\\"` carries a real hash of a transaction still being mined: repeat the identical call once (the x402 middleware does) and it is resolved, never broadcast twice. A payment is reported settled ONCE: any further settle call for it - concurrent, later, or after the payment was settled by someone else - is refused with `errorReason: \"invalid_transaction_state\"`, so one payment can never buy two responses. A seller's first settlement always carries the fee (it deploys their vault). Refusals are 200 with `success: false`, an empty `transaction` and the network.",
         "requestBody": {
           "required": true,
           "content": {
