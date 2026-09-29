@@ -47,7 +47,7 @@
     },
     {
       "name": "x402 (AI agents)",
-      "description": "An x402 v2 facilitator. AI agents pay for APIs, content and tools with an unmodified x402 client; sellers point the official x402 middleware (`@x402/express`, `@x402/fastify`, `@x402/hono`, `@x402/next`, or any x402 v2 resource server) at `https://api.p2flux.com/x402` and set `payTo` to their P2Flux vault. Settlement goes through P2FluxX402Splitter: the seller receives the payment less the P2Flux fee, max(1%, 0.002 USDC), in the same transaction; the first 1,000 settlements per seller per month carry no fee. Supported schemes: `exact` (EIP-3009) and `upto` (Permit2, pay for what was used)."
+      "description": "An x402 v2 facilitator. AI agents pay for APIs, content and tools with an unmodified x402 client; sellers point the official x402 middleware (`@x402/express`, `@x402/fastify`, `@x402/hono`, `@x402/next`, or any x402 v2 resource server) at `https://api.p2flux.com/x402` and set `payTo` to their P2Flux vault. Settlement goes through P2FluxX402Splitter: the seller receives the payment less the P2Flux fee, max(1%, 0.003 USDC), in the same transaction; the first 1,000 settlements per seller per month carry no fee. Supported schemes: `exact` (EIP-3009) and `upto` (Permit2, pay for what was used)."
     },
     {
       "name": "Service",
