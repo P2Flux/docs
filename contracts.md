@@ -37,6 +37,10 @@ Base Sepolia (84532), test environment:
 | `P2FluxRecurring` | `0x394c3fe285168f333ebf29e8f3585039328f2a73` |
 | `P2FluxSponsoredSplitter` | `0x876f7b98e8c06291ec916a3223a92038b0a8774f` |
 | `P2FluxGasSponsor` | `0x2dc51643040d7c396f1199a0664ac095d4b89ec5` |
+| `P2FluxX402Splitter` (AI agent payments) | `0x12Ae2c266014EB2A181024D12be9C4e5F468f7c8` |
+| `P2FluxBatchVaults` (prepaid agent payments) | `0x08EbEb85c53895F752bdAc9C115aF33FCff04F3E` |
+
+The two x402 contracts are on Base Sepolia only until their Mainnet deployment is announced here.
 
 `GET /v1/capabilities` returns the same addresses per operation (`sponsor_contracts`); read them from
 the API rather than pinning constants, which is also what keeps an integration correct across
@@ -45,6 +49,24 @@ environments.
 The one mutable value is `P2FluxRecurring.relayer`, changeable only by an `admin` address that is
 itself immutable. That exists so a compromised relayer hot key can be rotated without redeploying
 and without touching a single customer authorization.
+
+## AI agent payments (x402)
+
+`P2FluxX402Splitter` settles x402 payments from AI agents. An x402 client can sign only "pay this
+amount to `payTo`", so `payTo` is a **vault**: a small contract at an address derived from the
+seller's wallet (CREATE2), whose only ability is to pay that wallet, less the fee. No key — the
+relayer's included — can send a payment anywhere else. The relayer chooses one thing, the fee, and
+the contract bounds it: at most 1% or the minimum fee (0.003 USDC), and never more than half the
+payment. The payment reference is derived from the payer and the signature's nonce
+(`refOf(payer, nonce)`), so two payers cannot collide. Anything that reaches a vault outside a
+settlement can only be paid out to its seller (`flush`, permissionless). No owner, no pause, no
+upgrade path.
+
+`P2FluxBatchVaults` is the receiving side of x402 `batch-settlement` (prepaid balances). The agent's
+deposit sits in the x402 protocol's own payment-channel contract
+(`0x4020074e9dF2ce1deE5A9C1b5c3f541D02a10003`, not a P2Flux contract); the channel's receiver is the
+seller's batch vault, and `flush(seller)` pays the seller 97% and P2Flux 3%. Permissionless, no
+roles, no admin. A seller's batch vault and exact vault are different addresses.
 
 ## What the customer signs
 
@@ -60,7 +82,9 @@ deploying a new contract. One-time: 1% (`ONE_TIME_BPS`), on both splitters. Recu
 0.10 USDC network fee per collection, both merchant-funded out of the amount. A sponsored one-time
 payment additionally carries a merchant-funded fixed network fee of 0.10 USDC
 (`FIXED_NETWORK_FEE`) and the buyer's quoted network fee, capped by `MAX_NETWORK_FEE_HARD_CAP`
-(0.25 USDC). The current values are in
+(0.25 USDC). AI agent payments: 1% with a minimum of 0.003 USDC per request
+(`P2FluxX402Splitter.FEE_BPS`, `MIN_FEE`), or 3% of each payout for prepaid balances
+(`P2FluxBatchVaults.FEE_BPS`). The current values are in
 [`src/recurring.ts`](https://github.com/P2Flux/contracts/blob/main/src/recurring.ts) and
 [`src/sponsored.ts`](https://github.com/P2Flux/contracts/blob/main/src/sponsored.ts).
 
@@ -74,6 +98,7 @@ npm install github:P2Flux/contracts
 import { recurringAbi, recurringTypedData } from '@p2flux/contracts/recurring'
 import { splitterAbi, paymentIdFor } from '@p2flux/contracts/splitter'
 import { sponsoredSplitterAbi, gasSponsorAbi } from '@p2flux/contracts/sponsored'
+import { p2fluxX402SplitterAbi, p2fluxBatchVaultsAbi, x402VaultAddress, batchVaultAddress } from '@p2flux/contracts/x402'
 import { BASE_MAINNET, BASE_SEPOLIA } from '@p2flux/contracts/addresses'
 ```
 

@@ -11,7 +11,7 @@ on-chain layer.
 | [`openapi.json`](openapi.json) | the canonical API contract — every public endpoint, field, status and error code |
 | [Interactive reference](https://p2flux.com/docs/api/) | the same contract, browsable, with a live test environment |
 | [Contracts](contracts.md) | what the on-chain layer does and where it lives |
-| [Guides](https://p2flux.com/docs/) | quick start, environments, payments, subscriptions, refunds, recovery, errors, SDKs |
+| [Guides](https://p2flux.com/docs/) | quick start, environments, payments, subscriptions, refunds, recovery, AI agent payments (x402), errors, SDKs |
 
 Installing an official SDK is optional; the API is plain HTTPS. If you want one:
 
