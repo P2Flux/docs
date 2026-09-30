@@ -2818,7 +2818,7 @@
         "tags": [
           "x402 (AI agents)"
         ],
-        "description": "For sellers that do not run an x402 library - the P2Flux Agent Paywall WordPress plugin, a PHP app. The seller sends its wallet and price; the answer is the x402 requirement an agent signs: USDC on this network, to the seller's vault, with the token's own signing domain. No chain read; reuse it for `ttl` seconds.",
+        "description": "For sellers that do not run an x402 library - the P2Flux Agent Paywall WordPress plugin, a PHP app. The seller sends its wallet and price; the answer is the x402 requirement an agent signs: USDC on this network, to the seller's vault, with the token's own signing domain. No chain read; reuse it for `ttl` seconds. When this deployment offers batch settlement, `accepts` also lists a `batch-settlement` requirement: the agent deposits once (at least 1 USDC) into the standard x402 escrow and pays each request with a signed voucher - no transaction per request. Its receiver is the seller's P2Flux batch vault, which pays the seller 97% and P2Flux 3%.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2888,7 +2888,7 @@
         "tags": [
           "x402 (AI agents)"
         ],
-        "description": "Pass the agent's `PAYMENT-SIGNATURE` header unread, with the seller's own wallet and price. The API rebuilds the requirement from those - nothing the agent sends decides what is owed or to whom - and settles it through the facilitator. A payment is reported paid ONCE: the same header again is refused with `invalid_transaction_state`. A settlement still being mined is waited for once; if it is still pending the answer names the transaction and the agent's next request with the same header is paid. Refusals are 200 with `paid: false`; every settlement carries the P2Flux fee, max(1%, 0.003 USDC).",
+        "description": "Pass the agent's `PAYMENT-SIGNATURE` header unread, with the seller's own wallet and price. The API rebuilds the requirement from those - nothing the agent sends decides what is owed or to whom - and settles it through the facilitator. A payment is reported paid ONCE: the same header again is refused with `invalid_transaction_state`. A settlement still being mined is waited for once; if it is still pending the answer names the transaction and the agent's next request with the same header is paid. Refusals are 200 with `paid: false`; every settlement carries the P2Flux fee, max(1%, 0.003 USDC). Batch payments (`batch-settlement`) are verified and counted without a transaction; `receipt` identifies the paid request and, on refusal, `payment_required` is the 402 header to answer with - it carries the channel state the agent resynchronises to.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3540,6 +3540,21 @@
           "payment_response": {
             "type": "string",
             "description": "Send as the `PAYMENT-RESPONSE` header with the content."
+          },
+          "scheme": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "batch-settlement"
+            ]
+          },
+          "receipt": {
+            "type": "string",
+            "description": "batch-settlement: unique id of this paid request (no transaction per request)."
+          },
+          "payment_required": {
+            "type": "string",
+            "description": "batch-settlement, on refusal: the PAYMENT-REQUIRED header to send with the 402."
           }
         }
       }
