@@ -27,6 +27,9 @@ Base Mainnet (8453), all Sourcify exact match:
 | `P2FluxRecurring` | `0xb415A9910Ef627e3bEF10F5Cb9DC92a3271e0975` |
 | `P2FluxSponsoredSplitter` | `0x95E18ec05D4282acB3aab7aD60325bA4EEeEa8df` |
 | `P2FluxGasSponsor` | `0xD1DDAaa301403d18fD4A23Fc69493ef48af90285` |
+| `P2FluxX402Splitter` (AI agent payments) | `0x9A11CE97eaE8674a70487b1D18C06b1C7f654Ec1` |
+| `P2FluxBatchVaults` (prepaid agent payments) | `0xa62eDD9B45a0564a63C248564335BA7B2E3877A4` |
+| `P2FluxGasRefill` (relayer gas from P2Flux's own USDC) | `0x78cb470600EA0D68cE846bfc3bB455786BF56537` |
 
 Base Sepolia (84532), test environment:
 
@@ -39,8 +42,6 @@ Base Sepolia (84532), test environment:
 | `P2FluxGasSponsor` | `0x2dc51643040d7c396f1199a0664ac095d4b89ec5` |
 | `P2FluxX402Splitter` (AI agent payments) | `0x12Ae2c266014EB2A181024D12be9C4e5F468f7c8` |
 | `P2FluxBatchVaults` (prepaid agent payments) | `0x08EbEb85c53895F752bdAc9C115aF33FCff04F3E` |
-
-The two x402 contracts are on Base Sepolia only until their Mainnet deployment is announced here.
 
 `GET /v1/capabilities` returns the same addresses per operation (`sponsor_contracts`); read them from
 the API rather than pinning constants, which is also what keeps an integration correct across
