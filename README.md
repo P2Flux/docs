@@ -12,6 +12,9 @@ on-chain layer.
 | [Interactive reference](https://p2flux.com/docs/api/) | the same contract, browsable, with a live test environment |
 | [Contracts](contracts.md) | what the on-chain layer does and where it lives |
 | [Guides](https://p2flux.com/docs/) | quick start, environments, payments, subscriptions, refunds, recovery, AI agent payments (x402), errors, SDKs |
+| [AI agent payments](https://p2flux.com/docs/agents.html) | sell to AI agents over x402, with the P2Flux facilitator or the paywall helpers |
+| [Agent Paywall](https://p2flux.com/docs/agent-paywall.html) | the WordPress plugin that charges AI agents per page |
+| [Assistant wallet (MCP)](https://p2flux.com/docs/mcp.html) | the buyer side: an AI assistant that pays those sites |
 
 Installing an official SDK is optional; the API is plain HTTPS. If you want one:
 
@@ -51,6 +54,17 @@ accident — you keep your own `order → reference` mapping.
 | Test | `api-test.p2flux.com` | `pay-test.p2flux.com` | Base Sepolia (84532) |
 | Production | `api.p2flux.com` | `pay.p2flux.com` | Base Mainnet (8453) |
 
+The x402 facilitator for AI agent payments is part of each API, live on Base Mainnet since
+1 October 2026:
+
+| | x402 facilitator |
+|---|---|
+| Test | `https://api-test.p2flux.com/x402` |
+| Production | `https://api.p2flux.com/x402` |
+
+P2Flux takes 1% of each agent payment, at least 0.003 USDC; prepaid (batch-settlement) payments 3%.
+There is no free tier. See [AI agent payments](https://p2flux.com/docs/agents.html).
+
 The two are complete, non-interchangeable stacks — a capability issued by one is refused by the
 other, by construction. **Integrate against the test environment first.** Production is live on Base
 Mainnet with real USDC. Live state is on the [status page](https://p2flux.com/status.html).
@@ -78,7 +92,8 @@ The [contracts](contracts.md) page lists the addresses on both networks.
 ## Official SDKs
 
 Two official clients, each published on the registry its language already uses. GitHub is the
-source; the registry is the install route.
+source; the registry is the install route. Both also sell to AI agents: paywall helpers that charge a
+route over x402 without an x402 library.
 
 ### PHP
 
@@ -92,6 +107,7 @@ PHP 8.1+, no runtime dependencies, injectable transport.
 [Getting started](https://github.com/P2Flux/sdk-php/blob/main/docs/getting-started.md) ·
 [Payment flow](https://github.com/P2Flux/sdk-php/blob/main/docs/payment-flow.md) ·
 [Network fee in USDC](https://github.com/P2Flux/sdk-php/blob/main/docs/network-fee-in-usdc.md) ·
+[Charge AI agents](https://github.com/P2Flux/sdk-php/blob/main/docs/paywall.md) ·
 [Examples](https://github.com/P2Flux/sdk-php/tree/main/examples) ·
 [Testing](https://github.com/P2Flux/sdk-php/blob/main/docs/testing.md) ·
 [Production checklist](https://github.com/P2Flux/sdk-php/blob/main/docs/production-checklist.md)
@@ -108,6 +124,7 @@ Node 18+ or any runtime with a global `fetch`. ESM only, types included, no runt
 [Getting started](https://github.com/P2Flux/sdk-js/blob/main/docs/getting-started.md) ·
 [Payment flow](https://github.com/P2Flux/sdk-js/blob/main/docs/payment-flow.md) ·
 [Network fee in USDC](https://github.com/P2Flux/sdk-js/blob/main/docs/network-fee-in-usdc.md) ·
+[Charge AI agents](https://github.com/P2Flux/sdk-js/blob/main/docs/paywall.md) ·
 [Examples](https://github.com/P2Flux/sdk-js/tree/main/examples) ·
 [Testing](https://github.com/P2Flux/sdk-js/blob/main/docs/testing.md) ·
 [Production checklist](https://github.com/P2Flux/sdk-js/blob/main/docs/production-checklist.md)
@@ -118,24 +135,39 @@ Node 18+ or any runtime with a global `fetch`. ESM only, types included, no runt
 composer require p2flux/laravel
 ```
 
-`p2flux/laravel` (v0.1.1) wires the PHP SDK into Laravel 12 and 13: container binding, publishable
-config, an optional facade. It installs the SDK for you and adds no routes, migrations, models or
-scheduler.
+`p2flux/laravel` (v0.2.0) wires the PHP SDK into Laravel 12 and 13: container binding, publishable
+config, an optional facade, and an optional `p2flux.paywall` middleware that charges AI agents for a
+route. It installs the SDK for you and adds no routes, migrations, models or scheduler.
 [Packagist](https://packagist.org/packages/p2flux/laravel) ·
 [GitHub](https://github.com/P2Flux/laravel) ·
 [Getting started](https://github.com/P2Flux/laravel/blob/main/docs/getting-started.md) ·
 [Payments](https://github.com/P2Flux/laravel/blob/main/docs/payments.md) ·
 [Network fee in USDC](https://github.com/P2Flux/laravel/blob/main/docs/network-fee-in-usdc.md) ·
 [Subscriptions](https://github.com/P2Flux/laravel/blob/main/docs/subscriptions.md) ·
+[Charge AI agents](https://github.com/P2Flux/laravel/blob/main/docs/paywall.md) ·
 [Testing](https://github.com/P2Flux/laravel/blob/main/docs/testing.md) ·
 [Production checklist](https://github.com/P2Flux/laravel/blob/main/docs/production-checklist.md) ·
 [Examples](https://github.com/P2Flux/laravel/tree/main/examples)
 
-Both SDKs are **server-side** clients: they create payments, verify settlements and charge subscriptions
-from your backend. The buyer's wallet experience is the hosted checkout, and what a browser reports
+Both SDKs are **server-side** clients: they create payments, verify settlements, charge subscriptions
+and charge AI agents from your backend. The buyer's wallet experience is the hosted checkout, and what a browser reports
 back is a claim — your server's verification is what marks an order paid.
 
 Both cover the complete public V1 merchant/server surface, verified by a checked-in parity test in
 each repository. The [API reference](https://p2flux.com/docs/api/) describes the HTTP endpoints
 themselves, and [contracts](https://github.com/P2Flux/contracts) carries the Solidity sources, ABIs,
 EIP-712 definitions and chain constants.
+
+### Paying as an AI agent
+
+The buyer side is the P2Flux MCP server, `@p2flux/mcp`: it gives an AI assistant a wallet with
+spending limits and pays x402 sites from it. The wallet and its key stay on the user's computer.
+
+```bash
+npx -y @p2flux/mcp
+```
+
+P2Flux also hosts it, holding no wallet: `https://agent.p2flux.com/mcp` (real USDC on Base) and
+`https://agent-test.p2flux.com/mcp` (Base Sepolia). Each payment is approved in the user's own
+wallet. [npm](https://www.npmjs.com/package/@p2flux/mcp) ·
+[Guide](https://p2flux.com/docs/mcp.html)
