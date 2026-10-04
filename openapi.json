@@ -46,8 +46,12 @@
       "description": "Unsigned calldata for the customer's own wallet to send."
     },
     {
+      "name": "Payment links",
+      "description": "A standing offer you send as a URL - by email, chat or QR code - with no server of your own: an invoice paid once, a price paid many times, or a subscription P2Flux collects for you."
+    },
+    {
       "name": "x402 (AI agents)",
-      "description": "An x402 v2 facilitator. AI agents pay for APIs, content and tools with an unmodified x402 client; sellers point the official x402 middleware (`@x402/express`, `@x402/fastify`, `@x402/hono`, `@x402/next`, or any x402 v2 resource server) at `https://api.p2flux.com/x402` and set `payTo` to their P2Flux vault. Settlement goes through P2FluxX402Splitter: the seller receives the payment less the P2Flux fee, max(1%, 0.003 USDC), in the same transaction; the first 1,000 settlements per seller per month carry no fee. Supported schemes: `exact` (EIP-3009) and `upto` (Permit2, pay for what was used)."
+      "description": "An x402 v2 facilitator. AI agents pay for APIs, content and tools with an unmodified x402 client; sellers point the official x402 middleware (`@x402/express`, `@x402/fastify`, `@x402/hono`, `@x402/next`, or any x402 v2 resource server) at `https://api.p2flux.com/x402` and set `payTo` to their P2Flux vault. Settlement goes through P2FluxX402Splitter: the seller receives the payment less the P2Flux fee, max(1%, 0.003 USDC), in the same transaction. Supported schemes: `exact` (EIP-3009) and `upto` (Permit2, pay for what was used). A prepaid balance (x402 `batch-settlement`, 3% of each payout) is offered through the paywall challenge (`POST /x402/paywall/challenge`), not listed in `/x402/supported`."
     },
     {
       "name": "Service",
@@ -168,6 +172,10 @@
                         "null"
                       ],
                       "description": "What to approve, in base units; null means unlimited. The subscription's own setup mode, so a bounded allowance is not widened on repair."
+                    },
+                    "recipient": {
+                      "$ref": "#/components/schemas/Address",
+                      "description": "The merchant the subscription pays."
                     }
                   }
                 }
@@ -1406,6 +1414,9 @@
                     },
                     "expires_at": {
                       "type": "integer"
+                    },
+                    "original": {
+                      "$ref": "#/components/schemas/RefundOriginal"
                     }
                   }
                 }
@@ -3364,6 +3375,842 @@
           }
         }
       }
+    },
+    "/v1/links": {
+      "post": {
+        "operationId": "createPaymentLink",
+        "summary": "Create a payment link",
+        "tags": [
+          "Payment links"
+        ],
+        "description": "Signs a link - nothing is stored. Send `link` to buyers as `<checkout>/#/link/<link>` (the SDKs build it: `checkoutLink('link', link)`); keep `manage` for yourself and open it as `<checkout>/#/links/<manage>`.\n\n- `once`: an invoice. Every open mints an intent with the same reference, so the contract itself refuses a second payment. Expires in at most 30 days (default 7).\n- `reusable`: a fixed price, payable any number of times until it expires (at most a year).\n- `subscription`: a recurring payment. Each buyer signs once and pays the first period at once (`/v1/links/subscribe`); P2Flux keeps the subscription and collects every later period. When the buyer cannot pay, it retries after 1 hour, 6 hours and then daily, within the first quarter of the period (at most 3 days), then skips the period; three periods in a row the buyer could not pay end it. Periods missed because of trouble on P2Flux's side never count against the buyer. Period at least one day.\n\nWhich kinds a deployment offers is its choice; a kind not offered answers LINK_UNAVAILABLE.\n\nLINK_UNAVAILABLE carries a `reason`: KIND_NOT_OFFERED (this deployment does not offer that kind), CONTRACT_CHANGED (the settlement contract a one-time link was made for was replaced), SUBSCRIPTIONS_FULL (the list of subscriptions P2Flux collects is at its capacity).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "once",
+                      "reusable",
+                      "subscription"
+                    ]
+                  },
+                  "recipient": {
+                    "$ref": "#/components/schemas/Address"
+                  },
+                  "amount": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/Amount"
+                      }
+                    ],
+                    "description": "Decimal USDC, per payment or per period. Subscription links: at least 1 USDC."
+                  },
+                  "label": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "description": "Optional note for the buyer, shown as “Note from the link’s creator · not verified by P2Flux”: up to 60 characters; letters, ASCII digits, currency signs, spaces and . , : ; ' ( ) # & + _ ! ? % - / ; nothing that reads as a web or e-mail address (no letter after a full stop), no look-alike letters mixed from other scripts, and no mention of P2Flux or 'verified'."
+                  },
+                  "expires_at": {
+                    "type": "integer",
+                    "description": "Unix seconds, between about 1 hour and 30 days (once) or 366 days (other kinds) from now; a value a few minutes above the maximum is clamped to it."
+                  },
+                  "gas_payment_mode": {
+                    "type": "string",
+                    "enum": [
+                      "native",
+                      "payment_token"
+                    ],
+                    "description": "One-time kinds. Fixed for the link's whole life."
+                  },
+                  "period": {
+                    "type": "integer",
+                    "description": "Subscription: seconds between charges, at least 86400."
+                  },
+                  "periods": {
+                    "type": "integer",
+                    "description": "Subscription: number of charges (1-1200); omit for until cancelled."
+                  },
+                  "suspend_after_days": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 90,
+                    "default": 7,
+                    "description": "Subscription links: days without a successful payment after which a subscriber is paused (suspended, not ended); a successful collect restarts it."
+                  }
+                },
+                "required": [
+                  "kind",
+                  "recipient",
+                  "amount"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The signed link, its private manage token and its terms.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaymentLink"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "link",
+                        "manage"
+                      ],
+                      "properties": {
+                        "link": {
+                          "$ref": "#/components/schemas/Token"
+                        },
+                        "manage": {
+                          "$ref": "#/components/schemas/Token"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/links/open": {
+      "post": {
+        "operationId": "openPaymentLink",
+        "summary": "Open a payment link (buyer)",
+        "tags": [
+          "Payment links"
+        ],
+        "description": "What the checkout calls when a buyer opens a link. One-time kinds return an ordinary intent (pay it as any intent); subscriptions return an ordinary 15-minute setup token; after finalize, the buyer's page joins the link with `/v1/links/subscribe`, which charges the first period. With `payer`, when that wallet already has a subscription through this link, the answer carries `existing` (with cancel and restore sessions) INSTEAD of a setup token - one subscription per wallet per link. This answer is given even after the link expired or the kind was switched off, so a subscriber can always cancel through the link.\n\nRefused with LINK_UNAVAILABLE (`reason: CONTRACT_CHANGED`) when the contract a one-time link was made for has been replaced: re-minting it on another contract could let an invoice be paid twice.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "link": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "The public link (`p2l1.…`)."
+                  },
+                  "payer": {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                },
+                "required": [
+                  "link"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "An intent or a setup token, plus the link's terms.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaymentLink"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "intent": {
+                          "$ref": "#/components/schemas/Token"
+                        },
+                        "reference": {
+                          "$ref": "#/components/schemas/Bytes32"
+                        },
+                        "intent_expires_at": {
+                          "type": "integer"
+                        },
+                        "setup_token": {
+                          "$ref": "#/components/schemas/Token"
+                        },
+                        "setup_expires_at": {
+                          "type": "integer"
+                        },
+                        "existing": {
+                          "type": "object",
+                          "properties": {
+                            "subscription_id": {
+                              "$ref": "#/components/schemas/Bytes32"
+                            },
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "active",
+                                "stopped",
+                                "suspended"
+                              ]
+                            },
+                            "cancel_token": {
+                              "$ref": "#/components/schemas/Token"
+                            },
+                            "approve_token": {
+                              "$ref": "#/components/schemas/Token"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/links/status": {
+      "post": {
+        "operationId": "paymentLinkStatus",
+        "summary": "What a link has collected",
+        "tags": [
+          "Payment links"
+        ],
+        "description": "Send exactly one of `link` or `manage`. With the link: the terms, `state` (`open`/`expired`) and, for an invoice, whether it is paid. With the manage token: the same plus who paid - for a reusable link the payments found on chain (read in steps; `complete: false` means ask again for more), for a subscription link its subscribers with their last charge and next attempt. Answers already read from the chain are remembered, never read twice.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "link": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "The public link (`p2l1.…`)."
+                  },
+                  "manage": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "The private manage token (`p2lm1.…`). Keep it like a password: it shows who paid and can collect or stop subscriptions."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The link's terms and what it has collected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaymentLink"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "open",
+                            "expired"
+                          ]
+                        },
+                        "paid": {
+                          "type": "boolean"
+                        },
+                        "payment": {
+                          "$ref": "#/components/schemas/LinkPayment"
+                        },
+                        "payments": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/LinkPayment"
+                          }
+                        },
+                        "complete": {
+                          "type": "boolean"
+                        },
+                        "subscribers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "subscription_id": {
+                                "$ref": "#/components/schemas/Bytes32"
+                              },
+                              "payer": {
+                                "$ref": "#/components/schemas/Address"
+                              },
+                              "state": {
+                                "type": "string",
+                                "enum": [
+                                  "active",
+                                  "stopped",
+                                  "suspended",
+                                  "ended"
+                                ]
+                              },
+                              "started_at": {
+                                "type": "integer"
+                              },
+                              "last_period": {
+                                "type": "integer"
+                              },
+                              "last_tx": {
+                                "$ref": "#/components/schemas/Bytes32"
+                              },
+                              "next_attempt_at": {
+                                "type": "integer"
+                              },
+                              "last_code": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "link": {
+                          "$ref": "#/components/schemas/Token",
+                          "description": "Manage view only: the public link, to share again."
+                        },
+                        "final": {
+                          "type": "boolean",
+                          "description": "Reusable links: no later payment is possible (the link and every intent opened from it have expired)."
+                        },
+                        "truncated": {
+                          "type": "boolean",
+                          "description": "More than 5,000 payments: the list stops there."
+                        },
+                        "code": {
+                          "type": "string",
+                          "description": "Invoice links: why a payment found on chain is not counted yet (e.g. PAYMENT_CONFIRMING)."
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/links/collect": {
+      "post": {
+        "operationId": "collectPaymentLink",
+        "summary": "Collect a subscription now (merchant)",
+        "tags": [
+          "Payment links"
+        ],
+        "description": "\"Collect now\" for one subscriber of this link: charges the current period at any time within it (the merchant's choice, not the automatic window). A success also restarts automatic collection for a stopped subscriber; a failure changes nothing but the reason shown. An ended subscription is never revived (the buyer may have signed up again since): it answers PERMISSION_REVOKED or SUBSCRIPTION_EXPIRED.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "manage": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "The private manage token (`p2lm1.…`). Keep it like a password: it shows who paid and can collect or stop subscriptions."
+                  },
+                  "subscription_id": {
+                    "$ref": "#/components/schemas/Bytes32"
+                  }
+                },
+                "required": [
+                  "manage",
+                  "subscription_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The charge result, as /v1/charges answers it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "The same answer as /v1/charges: status CHARGED, ALREADY_CHARGED or CONFIRMING, period_index, tx_hash, next_period_at.",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CHARGED",
+                        "ALREADY_CHARGED",
+                        "CONFIRMING"
+                      ]
+                    },
+                    "period_index": {
+                      "type": "integer"
+                    },
+                    "tx_hash": {
+                      "$ref": "#/components/schemas/Bytes32"
+                    },
+                    "next_period_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/links/stop": {
+      "post": {
+        "operationId": "stopPaymentLink",
+        "summary": "Stop collecting a subscription (merchant)",
+        "tags": [
+          "Payment links"
+        ],
+        "description": "P2Flux stops collecting from this subscriber. Reversible: a successful Collect now restarts it. A subscriber stopped for three periods ends. Only the buyer's wallet can revoke the permission on chain.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "manage": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "The private manage token (`p2lm1.…`). Keep it like a password: it shows who paid and can collect or stop subscriptions."
+                  },
+                  "subscription_id": {
+                    "$ref": "#/components/schemas/Bytes32"
+                  }
+                },
+                "required": [
+                  "manage",
+                  "subscription_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The subscriber's new state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "subscription_id": {
+                      "$ref": "#/components/schemas/Bytes32"
+                    },
+                    "state": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/links/subscribe": {
+      "post": {
+        "operationId": "subscribePaymentLink",
+        "summary": "Join a subscription link with its first payment (buyer)",
+        "tags": [
+          "Payment links"
+        ],
+        "description": "What the buyer's checkout calls after the ordinary signup (`/v1/links/open` setup token, then `/v1/subscriptions/finalize`, unchanged): the `subscription` capability just signed, and the link. P2Flux charges the first period at once and keeps the subscription for automatic collection ONLY when that charge landed or is on its way - nothing is kept for a signup that is not paid. The signed terms must be exactly the link's, freshly opened (start within the setup's 15 minutes). One live subscription per wallet per link: a different one answers ALREADY_SUBSCRIBED; repeating the same capability is harmless and answers its current state. While the first charge is confirming, or a USDC approval sent with the signup is still confirming (INSUFFICIENT_ALLOWANCE), ask again.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "link",
+                  "subscription"
+                ],
+                "properties": {
+                  "link": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "The public link (`p2l1.…`)."
+                  },
+                  "subscription": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "The `p2s2.…` capability from finalize."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The first charge, and who collects the renewals.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "type": "object",
+                      "description": "The same answer as /v1/charges: status CHARGED, ALREADY_CHARGED or CONFIRMING, period_index, tx_hash, next_period_at.",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "CHARGED",
+                            "ALREADY_CHARGED",
+                            "CONFIRMING"
+                          ]
+                        },
+                        "period_index": {
+                          "type": "integer"
+                        },
+                        "tx_hash": {
+                          "$ref": "#/components/schemas/Bytes32"
+                        },
+                        "next_period_at": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "subscription_id": {
+                          "$ref": "#/components/schemas/Bytes32"
+                        },
+                        "collected_by": {
+                          "type": "string",
+                          "enum": [
+                            "p2flux",
+                            "merchant"
+                          ],
+                          "description": "`merchant` while automatic collection is switched off: the merchant collects with Collect now."
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [],
@@ -3510,7 +4357,11 @@
           "INSUFFICIENT_PAYMENT_TOKEN_FOR_GAS",
           "SPONSORED_TRANSACTION_FAILED",
           "SPONSORED_PERMIT_FAILED",
-          "SPONSORSHIP_CONFIRMING"
+          "SPONSORSHIP_CONFIRMING",
+          "INVALID_LINK",
+          "LINK_EXPIRED",
+          "LINK_UNAVAILABLE",
+          "ALREADY_SUBSCRIBED"
         ],
         "description": "Every code this API can return. Stable identifiers - branch on these, never on the human-readable text or the HTTP status alone."
       },
@@ -3967,6 +4818,152 @@
           "refunded": {
             "type": "boolean",
             "description": "The agent took its unused prepaid balance back. Not a payment: answer 200 with `payment_response` and no content."
+          }
+        }
+      },
+      "PaymentLink": {
+        "type": "object",
+        "description": "The terms of a payment link, as created.",
+        "required": [
+          "kind",
+          "id",
+          "chain_id",
+          "recipient",
+          "amount",
+          "amount_units",
+          "created_at",
+          "expires_at"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "once",
+              "reusable",
+              "subscription"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{32}$",
+            "description": "16 random bytes. Every payment through a one-time link has a reference that starts with it."
+          },
+          "chain_id": {
+            "type": "integer"
+          },
+          "recipient": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Amount"
+          },
+          "amount_units": {
+            "$ref": "#/components/schemas/AmountUnits"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "The merchant's note, shown to the buyer as \"Note from the link's creator, not verified by P2Flux\"."
+          },
+          "created_at": {
+            "type": "integer"
+          },
+          "expires_at": {
+            "type": "integer",
+            "description": "Unix seconds. After this the link takes no new payments or subscriptions; payments made before stay valid and subscriptions already signed keep being collected."
+          },
+          "gas_payment_mode": {
+            "type": "string",
+            "enum": [
+              "native",
+              "payment_token"
+            ],
+            "description": "One-time kinds only."
+          },
+          "period": {
+            "type": "integer",
+            "description": "Subscription only: seconds between charges (at least one day)."
+          },
+          "periods": {
+            "type": "integer",
+            "description": "Subscription only: number of charges; absent = until cancelled."
+          },
+          "suspend_after_days": {
+            "type": "integer",
+            "description": "Subscription links: days without payment before a subscriber is paused."
+          }
+        }
+      },
+      "LinkPayment": {
+        "type": "object",
+        "required": [
+          "tx_hash",
+          "block_number",
+          "reference",
+          "amount_units"
+        ],
+        "properties": {
+          "tx_hash": {
+            "$ref": "#/components/schemas/Bytes32"
+          },
+          "block_number": {
+            "type": "string"
+          },
+          "reference": {
+            "$ref": "#/components/schemas/Bytes32"
+          },
+          "amount_units": {
+            "$ref": "#/components/schemas/AmountUnits"
+          },
+          "payer": {
+            "$ref": "#/components/schemas/Address",
+            "description": "Only with the manage token."
+          },
+          "timestamp": {
+            "type": "integer"
+          }
+        }
+      },
+      "RefundOriginal": {
+        "type": "object",
+        "description": "The settlement being refunded. The checkout reads its receipt itself, from the contracts it has pinned, and refuses a refund to anyone but the original payer or above the amount paid.",
+        "required": [
+          "kind",
+          "tx_hash",
+          "contract"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "charge"
+            ]
+          },
+          "tx_hash": {
+            "$ref": "#/components/schemas/Bytes32"
+          },
+          "contract": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "reference": {
+            "$ref": "#/components/schemas/Bytes32"
+          },
+          "amount_units": {
+            "$ref": "#/components/schemas/AmountUnits"
+          },
+          "gas_payment_mode": {
+            "type": "string",
+            "enum": [
+              "native",
+              "payment_token"
+            ]
+          },
+          "subscription_id": {
+            "$ref": "#/components/schemas/Bytes32"
+          },
+          "period_index": {
+            "type": "integer"
           }
         }
       }
