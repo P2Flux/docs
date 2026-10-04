@@ -3747,6 +3747,11 @@
                               "last_period": {
                                 "type": "integer"
                               },
+                              "paid_count": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "description": "Periods collected so far; skipped periods are not counted."
+                              },
                               "last_tx": {
                                 "$ref": "#/components/schemas/Bytes32"
                               },
