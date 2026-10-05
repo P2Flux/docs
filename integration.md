@@ -51,7 +51,8 @@ AI agents pay over x402. P2Flux is the facilitator: point any x402 v2 resource s
   identical settle call once; it is never broadcast twice.
 - Fee: 1% of each settlement, at least 0.003 USDC. Smallest payment 0.01 USDC. There is no free tier.
 - Prepaid balances (x402 batch-settlement, 3%) are not listed in `/supported`. They are offered
-  through the paywall challenge, `POST /x402/paywall/challenge`.
+  through the paywall challenge, `POST /x402/paywall/challenge`. A paywall price may go down to
+  0.0001 USDC: it is offered at that price from a prepaid balance and at 0.01 paid per request.
 
 A seller without an x402 library uses the paywall calls instead (`/x402/paywall/challenge`,
 `/x402/paywall/redeem`, and `/x402/paywall/verify` for usage pricing), or the SDK helpers that wrap
