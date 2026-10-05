@@ -4216,6 +4216,50 @@
           }
         }
       }
+    },
+    "/g/{code}": {
+      "get": {
+        "operationId": "shortLink",
+        "summary": "Short address of a payment link",
+        "tags": [
+          "Payment links"
+        ],
+        "description": "Forwards to the payment page of a public payment link: `<link id>` or `<link id>.<signup tag>`, each 16 bytes in base64url. Short addresses exist only for links registered by P2Flux Gate (the Telegram bot), so a button in Telegram does not show a 500-character link. The link and tag travel in the URL fragment of the payment page.",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22}(\\.[A-Za-z0-9_-]{22})?$"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Forwarded to the payment page (`Location: https://pay.p2flux.com/#/link/<link>[~0x<tag>]`).",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment link has this short address.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [],
