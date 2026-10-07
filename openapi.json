@@ -4282,7 +4282,7 @@
     "/checkout/screen": {
       "post": {
         "summary": "Screen a payer wallet",
-        "description": "Is this wallet allowed to pay through P2Flux? `sanctioned` when it is on the U.S. OFAC SDN list or frozen by the token issuer (Circle's USDC freeze list). The hosted checkout asks right after the buyer connects, before any wallet prompt; every money path refuses such a wallet with `PAYER_SANCTIONED` on its own as well.",
+        "description": "Is this wallet allowed to pay through P2Flux? `sanctioned` when it is on the U.S. OFAC SDN list (this endpoint reads the list only). The hosted checkout asks right after the buyer connects, before any wallet prompt. Every path where P2Flux submits or executes a payment checks again on its own and refuses with `PAYER_SANCTIONED` - there also when the token issuer has restricted the wallet (e.g. Circle's USDC freeze list), which is an issuer restriction, not necessarily a sanction. A merchant receiving wallet on the OFAC list is refused with `RECIPIENT_SANCTIONED` wherever a payment to it would be created or sent.",
         "operationId": "screenAddress",
         "requestBody": {
           "required": true,
@@ -4509,7 +4509,8 @@
           "LINK_EXPIRED",
           "LINK_UNAVAILABLE",
           "ALREADY_SUBSCRIBED",
-          "PAYER_SANCTIONED"
+          "PAYER_SANCTIONED",
+          "RECIPIENT_SANCTIONED"
         ],
         "description": "Every code this API can return. Stable identifiers - branch on these, never on the human-readable text or the HTTP status alone."
       },
