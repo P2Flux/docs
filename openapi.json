@@ -905,9 +905,10 @@
                       "type": "string",
                       "enum": [
                         "clear",
-                        "sanctioned"
+                        "sanctioned",
+                        "unknown"
                       ],
-                      "description": "As on /v1/payments/verify: whether the wallet that paid is sanctioned or issuer-frozen."
+                      "description": "As on /v1/payments/verify: whether the wallet that paid (or signed) is on the OFAC sanctions list."
                     }
                   }
                 },
@@ -1185,9 +1186,10 @@
                           "type": "string",
                           "enum": [
                             "clear",
-                            "sanctioned"
+                            "sanctioned",
+                            "unknown"
                           ],
-                          "description": "Sanctions screening of the wallet that paid: `sanctioned` when it is on the U.S. OFAC SDN list or frozen by the token issuer. The payment settled and stays valid (a transfer cannot be undone), but P2Flux will not prepare a refund to that wallet; decide whether to fulfil and seek advice."
+                          "description": "Sanctions screening of the wallet that paid and of the wallet that signed the transaction (a smart account screens as the account), against the U.S. OFAC SDN list: `sanctioned` when either is on it, `unknown` when the API has no list loaded at the moment. The payment settled and stays valid (a transfer cannot be undone), but P2Flux will not prepare a refund to that wallet; decide whether to fulfil and seek advice."
                         }
                       }
                     },
@@ -4303,7 +4305,7 @@
         },
         "responses": {
           "200": {
-            "description": "The screening result.",
+            "description": "The screening result, against the U.S. OFAC SDN list only (no chain read; the issuer freeze list is checked where P2Flux sends a payment). 503 RELAYER_NOT_READY while no list is loaded.",
             "content": {
               "application/json": {
                 "schema": {
