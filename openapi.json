@@ -900,6 +900,14 @@
                     "settlement_receipt": {
                       "type": "string",
                       "description": "On a found, valid payment: the same sealed receipt `/v1/payments/verify` issues, redeemable there."
+                    },
+                    "screening": {
+                      "type": "string",
+                      "enum": [
+                        "clear",
+                        "sanctioned"
+                      ],
+                      "description": "As on /v1/payments/verify: whether the wallet that paid is sanctioned or issuer-frozen."
                     }
                   }
                 },
@@ -1172,6 +1180,14 @@
                         "settlement_receipt": {
                           "type": "string",
                           "description": "Sealed, short-lived proof of this CONFIRMED verdict (token prefix p2paid1). Hand it back on a later verify of the same intent + tx_hash to get the same answer without another chain verification - e.g. from the buyer's browser to the merchant's server. Issued only with valid=true; a confirming or failed verification never carries one."
+                        },
+                        "screening": {
+                          "type": "string",
+                          "enum": [
+                            "clear",
+                            "sanctioned"
+                          ],
+                          "description": "Sanctions screening of the wallet that paid: `sanctioned` when it is on the U.S. OFAC SDN list or frozen by the token issuer. The payment settled and stays valid (a transfer cannot be undone), but P2Flux will not prepare a refund to that wallet; decide whether to fulfil and seek advice."
                         }
                       }
                     },
@@ -4260,6 +4276,86 @@
           }
         }
       }
+    },
+    "/checkout/screen": {
+      "post": {
+        "summary": "Screen a payer wallet",
+        "description": "Is this wallet allowed to pay through P2Flux? `sanctioned` when it is on the U.S. OFAC SDN list or frozen by the token issuer (Circle's USDC freeze list). The hosted checkout asks right after the buyer connects, before any wallet prompt; every money path refuses such a wallet with `PAYER_SANCTIONED` on its own as well.",
+        "operationId": "screenAddress",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "address"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "address": {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The screening result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "sanctioned",
+                    "reasons"
+                  ],
+                  "properties": {
+                    "sanctioned": {
+                      "type": "boolean"
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "OFAC",
+                          "ISSUER_BLACKLIST"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not an address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "One-time payments"
+        ]
+      }
     }
   },
   "security": [],
@@ -4410,7 +4506,8 @@
           "INVALID_LINK",
           "LINK_EXPIRED",
           "LINK_UNAVAILABLE",
-          "ALREADY_SUBSCRIBED"
+          "ALREADY_SUBSCRIBED",
+          "PAYER_SANCTIONED"
         ],
         "description": "Every code this API can return. Stable identifiers - branch on these, never on the human-readable text or the HTTP status alone."
       },
@@ -4483,7 +4580,8 @@
             "type": "string"
           },
           "payer": {
-            "type": "string"
+            "type": "string",
+            "description": "The wallet that paid (the sponsored payer, or for a native payment the wallet that sent the merchant its share)."
           }
         }
       },
