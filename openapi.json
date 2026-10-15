@@ -5146,7 +5146,7 @@
           "chain_id",
           "data"
         ],
-        "description": "The body P2Flux POSTs to a `notify_url`. Headers `p2flux-event-id` and `p2flux-event-type` repeat `id` and `type`. Answer any 2xx to acknowledge; anything else (including a redirect, or no answer within 5 seconds) is retried after 1 min, 5 min, 30 min, 2 h, 6 h and 12 h. The same event can arrive more than once, and anyone can POST to your URL: fulfil once per verified payment (reference and transaction) or subscription period, never per `id`. It carries no signature and no secret - treat it as a hint and confirm with the API before fulfilling.",
+        "description": "The body P2Flux POSTs to a `notify_url`. Headers `p2flux-event-id` and `p2flux-event-type` repeat `id` and `type`. Answer any 2xx to acknowledge; anything else (including a redirect, or no answer within 10 seconds) is retried after 1 min, 5 min, 30 min, 2 h, 6 h and 12 h. The same event can arrive more than once, and anyone can POST to your URL: fulfil once per verified payment (reference and transaction) or subscription period, never per `id`. It carries no signature and no secret - treat it as a hint and confirm with the API before fulfilling.",
         "properties": {
           "id": {
             "$ref": "#/components/schemas/Bytes32"
