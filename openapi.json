@@ -679,6 +679,12 @@
                     ],
                     "default": "native",
                     "description": "How the buyer pays the chain's network fee. Omit for `native`: the buyer sends the transaction and pays gas in the chain's own currency, exactly as every integration written before this field existed. With `payment_token` the buyer needs none of that currency - P2Flux sends the transaction and the buyer reimburses the quoted network cost in the payment token, plus a flat gas-service fee (0.10 USDC). Ask `/v1/capabilities` first: an unsupported network or token is refused here with PAYMENT_TOKEN_GAS_UNSUPPORTED rather than after a customer has been sent to a checkout that cannot work."
+                  },
+                  "notify_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 512,
+                    "description": "Optional webhook. A public https URL on the default port (no IP addresses, no credentials); the path and query are yours - an order id in the query is the usual shape. P2Flux watches this payment and POSTs a `payment.paid` event there once it is verified on chain, retrying for about 18 hours. Omit it and nothing changes: polling keeps working exactly as before. Refused with INVALID_REQUEST on a deployment that does not offer webhooks. A notification is a hint, not a proof: confirm it with `/v1/payments/verify` and match the reference to your order (the SDKs' `handleNotification` does both). See https://p2flux.com/docs/webhooks.html."
                   }
                 },
                 "required": [
@@ -758,6 +764,10 @@
                           "description": "amount - payment_fee - fixed_network_fee."
                         }
                       }
+                    },
+                    "notify_url": {
+                      "type": "string",
+                      "description": "Present only when `notify_url` was sent: the address notifications go to."
                     }
                   },
                   "examples": [
@@ -3460,6 +3470,12 @@
                     "maximum": 90,
                     "default": 7,
                     "description": "Subscription links: days without a successful payment after which a subscriber is paused (suspended, not ended); a successful collect restarts it."
+                  },
+                  "notify_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 512,
+                    "description": "Optional webhook for every payment through this link: `payment.paid` for each one-time payment (with `link_id`), and `subscription.charged` / `subscription.updated` for subscription links. Kept by P2Flux against the link id, never inside the link, so the link and its QR code are unchanged. Same rules and retries as on POST /v1/payments. See https://p2flux.com/docs/webhooks.html."
                   }
                 },
                 "required": [
@@ -3493,6 +3509,10 @@
                         },
                         "manage": {
                           "$ref": "#/components/schemas/Token"
+                        },
+                        "notify_url": {
+                          "type": "string",
+                          "description": "Present only when `notify_url` was sent: the address notifications go to."
                         }
                       }
                     }
@@ -5114,6 +5134,107 @@
           },
           "period_index": {
             "type": "integer"
+          }
+        }
+      },
+      "WebhookEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "created_at",
+          "chain_id",
+          "data"
+        ],
+        "description": "The body P2Flux POSTs to a `notify_url`. Headers `p2flux-event-id` and `p2flux-event-type` repeat `id` and `type`. Answer any 2xx to acknowledge; anything else (including a redirect, or no answer within 5 seconds) is retried after 1 min, 5 min, 30 min, 2 h, 6 h and 12 h. The same event can arrive more than once: deduplicate on `id`. It carries no signature and no secret - treat it as a hint and confirm with the API before fulfilling.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Bytes32"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "payment.paid",
+              "subscription.charged",
+              "subscription.updated"
+            ]
+          },
+          "created_at": {
+            "type": "integer",
+            "description": "Unix seconds."
+          },
+          "chain_id": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "object",
+            "description": "`payment.paid`: intent, reference, tx_hash, amount, block_number, gas_payment_mode, screening, link_id (link payments). Confirm with POST /v1/payments/verify {intent, tx_hash}. `subscription.charged` / `subscription.updated`: link_id, subscription_id, payer, state, paid_count, period_index and tx_hash (charged), reason (updated), tag. Confirm with POST /v1/links/status using the link's manage token.",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "payment.paid": {
+      "post": {
+        "summary": "Webhook delivered to your notify_url",
+        "description": "Sent only when `notify_url` was given on POST /v1/payments or POST /v1/links.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Any 2xx acknowledges the event."
+          }
+        }
+      }
+    },
+    "subscription.charged": {
+      "post": {
+        "summary": "Webhook delivered to your notify_url",
+        "description": "Sent only when `notify_url` was given on POST /v1/payments or POST /v1/links.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Any 2xx acknowledges the event."
+          }
+        }
+      }
+    },
+    "subscription.updated": {
+      "post": {
+        "summary": "Webhook delivered to your notify_url",
+        "description": "Sent only when `notify_url` was given on POST /v1/payments or POST /v1/links.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Any 2xx acknowledges the event."
           }
         }
       }
