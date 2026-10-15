@@ -684,7 +684,7 @@
                     "type": "string",
                     "format": "uri",
                     "maxLength": 512,
-                    "description": "Optional webhook. A public https URL on the default port (no IP addresses, no credentials); the path and query are yours - an order id in the query is the usual shape. P2Flux watches this payment and POSTs a `payment.paid` event there once it is verified on chain, retrying for about 18 hours. Omit it and nothing changes: polling keeps working exactly as before. Refused with INVALID_REQUEST on a deployment that does not offer webhooks. A notification is a hint, not a proof: confirm it with `/v1/payments/verify` and match the reference to your order (the SDKs' `handleNotification` does both). See https://p2flux.com/docs/webhooks.html."
+                    "description": "Optional webhook. A public https URL on the default port (no IP addresses, no credentials); the path and query are yours - an order id in the query is the usual shape. P2Flux watches this payment and POSTs a `payment.paid` event there once it is verified on chain, retrying for about 18 hours. Omit it and nothing changes: polling keeps working exactly as before. Watching is capped per caller and in total; past the cap the payment is still created, without notifications, and the response has no `notify_url`. Refused with INVALID_REQUEST on a deployment that does not offer webhooks. A notification is a hint, not a proof: confirm it with `/v1/payments/verify` and match the reference to your order (the SDKs' `handleNotification` does both). See https://p2flux.com/docs/webhooks.html."
                   }
                 },
                 "required": [
@@ -5146,7 +5146,7 @@
           "chain_id",
           "data"
         ],
-        "description": "The body P2Flux POSTs to a `notify_url`. Headers `p2flux-event-id` and `p2flux-event-type` repeat `id` and `type`. Answer any 2xx to acknowledge; anything else (including a redirect, or no answer within 5 seconds) is retried after 1 min, 5 min, 30 min, 2 h, 6 h and 12 h. The same event can arrive more than once: deduplicate on `id`. It carries no signature and no secret - treat it as a hint and confirm with the API before fulfilling.",
+        "description": "The body P2Flux POSTs to a `notify_url`. Headers `p2flux-event-id` and `p2flux-event-type` repeat `id` and `type`. Answer any 2xx to acknowledge; anything else (including a redirect, or no answer within 5 seconds) is retried after 1 min, 5 min, 30 min, 2 h, 6 h and 12 h. The same event can arrive more than once, and anyone can POST to your URL: fulfil once per verified payment (reference and transaction) or subscription period, never per `id`. It carries no signature and no secret - treat it as a hint and confirm with the API before fulfilling.",
         "properties": {
           "id": {
             "$ref": "#/components/schemas/Bytes32"
