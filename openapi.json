@@ -685,6 +685,12 @@
                     "format": "uri",
                     "maxLength": 512,
                     "description": "Optional webhook. A public https URL on the default port (no IP addresses, no credentials); the path and query are yours - an order id in the query is the usual shape. P2Flux watches this payment and POSTs a `payment.paid` event there once it is verified on chain, retrying for about 18 hours. Omit it and nothing changes: polling keeps working exactly as before. Watching is capped per caller and in total; past the cap the payment is still created, without notifications, and the response has no `notify_url`. Refused with INVALID_REQUEST on a deployment that does not offer webhooks. A notification is a hint, not a proof: confirm it with `/v1/payments/verify` and match the reference to your order (the SDKs' `handleNotification` does both). See https://p2flux.com/docs/webhooks.html."
+                  },
+                  "return_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 512,
+                    "description": "Optional. Where the hosted checkout sends the buyer after paying: an https URL (http is accepted on the test network only), no credentials, not a P2Flux address, at most 512 characters; the query is yours, a fragment is dropped. Signed in, so nobody can change it. After a confirmed payment the page shows **Back to store** and, when the shop sent the buyer there (no opener window), goes back by itself after about 3 seconds, adding `p2flux_reference`, `p2flux_tx` and `p2flux_status` (`paid`, or `confirming` when the transaction is sent but not yet confirmed) to the query. The return is a convenience, never proof: confirm the payment with the API or a webhook before delivering."
                   }
                 },
                 "required": [
@@ -768,6 +774,16 @@
                     "notify_url": {
                       "type": "string",
                       "description": "Present only when `notify_url` was sent: the address notifications go to."
+                    },
+                    "checkout_url": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The P2Flux hosted payment page for this payment, ready to send the buyer to (pay.p2flux.com on Mainnet, pay-test.p2flux.com on the test network)."
+                    },
+                    "return_url": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "Present only when `return_url` was sent: the address as kept."
                     }
                   },
                   "examples": [
@@ -1052,6 +1068,11 @@
                         "null"
                       ],
                       "description": "How many confirmations the server's finality policy requires before /v1/payments/verify answers valid. Advisory: a client may wait this depth out on its own RPC and then verify once, instead of polling verify while blocks accumulate. Null when the policy is tag-based (safe) - then poll verify as before. The server always applies the policy itself regardless of what the client does with this number."
+                    },
+                    "return_url": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "Present only when the payment carries a return URL: where the checkout sends the buyer after paying."
                     }
                   }
                 }
@@ -3476,6 +3497,12 @@
                     "format": "uri",
                     "maxLength": 512,
                     "description": "Optional webhook for every payment through this link: `payment.paid` for each one-time payment (with `link_id`), and `subscription.charged` / `subscription.updated` for subscription links. Kept by P2Flux against the link id, never inside the link, so the link and its QR code are unchanged. Same rules and retries as on POST /v1/payments. See https://p2flux.com/docs/webhooks.html."
+                  },
+                  "return_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "maxLength": 512,
+                    "description": "Optional. Where the hosted checkout sends the buyer after paying: an https URL (http is accepted on the test network only), no credentials, not a P2Flux address, at most 512 characters; the query is yours, a fragment is dropped. Signed into the link (and every payment it opens), so nobody can change it. After a confirmed payment the page shows **Back to store** and, when the shop sent the buyer there (no opener window), goes back by itself after about 3 seconds, adding `p2flux_reference`, `p2flux_tx` and `p2flux_status` (`paid`, or `confirming` when the transaction is sent but not yet confirmed) to the query. The return is a convenience, never proof: confirm the payment with the API or a webhook before delivering. For a subscription link the query carries `p2flux_subscription` instead of `p2flux_reference`. A link with a return URL is longer, so its QR code is denser."
                   }
                 },
                 "required": [
@@ -3513,6 +3540,11 @@
                         "notify_url": {
                           "type": "string",
                           "description": "Present only when `notify_url` was sent: the address notifications go to."
+                        },
+                        "checkout_url": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "The P2Flux hosted payment page for this link, ready to send the buyer to (pay.p2flux.com on Mainnet, pay-test.p2flux.com on the test network)."
                         }
                       }
                     }
@@ -5034,6 +5066,11 @@
             "type": "string",
             "maxLength": 60,
             "description": "The merchant's note, shown to the buyer as \"Note from the link's creator, not verified by P2Flux\"."
+          },
+          "return_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Present only when the link was created with one: where the checkout sends the buyer after paying."
           },
           "created_at": {
             "type": "integer"
