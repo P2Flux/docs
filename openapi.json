@@ -948,7 +948,7 @@
                         "sanctioned",
                         "unknown"
                       ],
-                      "description": "As on /v1/payments/verify: whether the wallet that paid (or signed) is on the OFAC sanctions list."
+                      "description": "As on /v1/payments/verify: whether the wallet that paid (or signed) is on the OFAC sanctions list. `unknown` also when the payment came through a shared contract on someone else's behalf (a privacy service such as Hinkal, `accounting.refundable: false`): the wallets on chain are then the contract and its relayer, not the buyer."
                     }
                   }
                 },
@@ -1241,7 +1241,7 @@
                             "sanctioned",
                             "unknown"
                           ],
-                          "description": "Sanctions screening of the wallet that paid and of the wallet that signed the transaction (a smart account screens as the account), against the U.S. OFAC SDN list: `sanctioned` when either is on it, `unknown` when the API has no list loaded at the moment. The payment settled and stays valid (a transfer cannot be undone), but P2Flux will not prepare a refund to that wallet; decide whether to fulfil and seek advice."
+                          "description": "Sanctions screening of the wallet that paid and of the wallet that signed the transaction (a smart account screens as the account), against the U.S. OFAC SDN list: `sanctioned` when either is on it, `unknown` when the API has no list loaded at the moment. The payment settled and stays valid (a transfer cannot be undone), but P2Flux will not prepare a refund to that wallet; decide whether to fulfil and seek advice. `unknown` also when the payment came through a shared contract on someone else's behalf (a privacy service such as Hinkal, `accounting.refundable: false`): the wallets on chain are then the contract and its relayer, not the buyer."
                         }
                       }
                     },
@@ -5168,6 +5168,13 @@
           "payer": {
             "$ref": "#/components/schemas/Address",
             "description": "Only with the manage token."
+          },
+          "refundable": {
+            "type": "boolean",
+            "enum": [
+              false
+            ],
+            "description": "Present, and false, only when this payment came through a privacy service (Hinkal): a refund to the payer would be lost. As `accounting.refundable` on /v1/payments/verify."
           },
           "timestamp": {
             "type": "integer"
