@@ -691,6 +691,13 @@
                     "format": "uri",
                     "maxLength": 512,
                     "description": "Optional. Where the hosted checkout sends the buyer after paying: an https URL (http is accepted on the test network only), no credentials, not a P2Flux address (nor one that reads like it), at most 512 characters; the query is yours, a fragment is dropped. Signed in, so nobody can change it. After a confirmed payment the page shows a button naming your site and, when the shop sent the buyer there (no opener window), goes back by itself after about 3 seconds (a self-hosted checkout shows the button only); it adds `p2flux_reference`, `p2flux_tx` and `p2flux_status` (`paid`, or `confirming` when the transaction is sent but not yet confirmed) to the query. The return is a convenience, never proof: confirm the payment with the API or a webhook before delivering."
+                  },
+                  "private_payment": {
+                    "type": "string",
+                    "enum": [
+                      "hinkal"
+                    ],
+                    "description": "Optional, Base only. Also offer the buyer \"Pay privately with Hinkal\": the hosted checkout shows a second button that pays from the buyer's Hinkal shielded balance (Hinkal's Emporium contract calls the splitter). Settlement, verification and fees to the merchant are unchanged; the buyer pays Hinkal's fee on top. Such a payment cannot be refunded automatically (`refundable: false`, `REFUND_PAYER_UNSUPPORTED`) - return it to an address the buyer gives you. Native gas only: refused with `gas_payment_mode: payment_token`, and on networks without Hinkal."
                   }
                 },
                 "required": [
@@ -784,6 +791,13 @@
                       "type": "string",
                       "format": "uri",
                       "description": "Present only when `return_url` was sent: the address as kept."
+                    },
+                    "private_payment": {
+                      "type": "string",
+                      "enum": [
+                        "hinkal"
+                      ],
+                      "description": "Present only when the merchant offered a private payment through Hinkal."
                     }
                   },
                   "examples": [
@@ -1073,6 +1087,13 @@
                       "type": "string",
                       "format": "uri",
                       "description": "Present only when the payment carries a return URL: where the checkout sends the buyer after paying."
+                    },
+                    "private_payment": {
+                      "type": "string",
+                      "enum": [
+                        "hinkal"
+                      ],
+                      "description": "Present only when the merchant offered a private payment through Hinkal."
                     }
                   }
                 }
@@ -1386,7 +1407,7 @@
             }
           },
           "400": {
-            "description": "`REFUND_AMOUNT_INVALID`: zero, non-integer, or above the ceiling. The maximum is the COMMERCIAL amount the buyer paid - so a full refund means the merchant absorbs the original P2Flux fee. For a recurring charge the ceiling excludes the gas reimbursement, which paid for a transaction that already happened.",
+            "description": "`REFUND_PAYER_UNSUPPORTED`: the original payment came from a shared contract that pays on someone else's behalf (a privacy service such as Hinkal), so a refund to the paying address would not reach the buyer; return the money to an address the buyer gives you. `REFUND_AMOUNT_INVALID`: zero, non-integer, or above the ceiling. The maximum is the COMMERCIAL amount the buyer paid - so a full refund means the merchant absorbs the original P2Flux fee. For a recurring charge the ceiling excludes the gas reimbursement, which paid for a transaction that already happened.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3503,6 +3524,13 @@
                     "format": "uri",
                     "maxLength": 512,
                     "description": "Optional. Where the hosted checkout sends the buyer after paying: an https URL (http is accepted on the test network only), no credentials, not a P2Flux address (nor one that reads like it), at most 512 characters; the query is yours, a fragment is dropped. Signed into the link (and every payment it opens), so nobody can change it. After a confirmed payment the page shows a button naming your site; it never goes back by itself from a link (a link travels, so the buyer chooses). The button adds `p2flux_reference` (`p2flux_subscription` for a subscription link), `p2flux_tx` and `p2flux_status` (`paid`, or `confirming` when the transaction is sent but not yet confirmed) to the query. The return is a convenience, never proof: confirm the payment with the API or a webhook before delivering. A link with a return URL is longer, so its QR code is denser."
+                  },
+                  "private_payment": {
+                    "type": "string",
+                    "enum": [
+                      "hinkal"
+                    ],
+                    "description": "Optional, Base, one-time links only (`once`, `reusable`). Every payment opened from the link offers \"Pay privately with Hinkal\" as well - see `POST /v1/payments`. Old self-hosted checkouts (before this option) refuse such a link."
                   }
                 },
                 "required": [
@@ -4520,6 +4548,7 @@
           "REFUND_WRONG_MERCHANT",
           "REFUND_TRANSACTION_MISMATCH",
           "REFUND_ORIGINAL_PAYMENT_INVALID",
+          "REFUND_PAYER_UNSUPPORTED",
           "SIGNATURE_VALIDATION_TOO_EXPENSIVE",
           "UNSUPPORTED_SIGNATURE_FORMAT",
           "PAYMENT_ALREADY_PROCESSED",
@@ -4637,6 +4666,13 @@
           "payer": {
             "type": "string",
             "description": "The wallet that paid (the sponsored payer, or for a native payment the wallet that sent the merchant its share)."
+          },
+          "refundable": {
+            "type": "boolean",
+            "enum": [
+              false
+            ],
+            "description": "Present, and false, only when the payment came from a shared contract that pays on someone else's behalf (a privacy service such as Hinkal): a refund to the paying address would not reach the buyer, and `POST /v1/refunds/prepare` refuses it with `REFUND_PAYER_UNSUPPORTED`. Absent means nothing is known against refunding."
           }
         }
       },
@@ -5098,6 +5134,13 @@
           "suspend_after_days": {
             "type": "integer",
             "description": "Subscription links: days without payment before a subscriber is paused."
+          },
+          "private_payment": {
+            "type": "string",
+            "enum": [
+              "hinkal"
+            ],
+            "description": "Present only when the merchant offered a private payment through Hinkal."
           }
         }
       },
