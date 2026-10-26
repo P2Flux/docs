@@ -684,7 +684,7 @@
                     "type": "string",
                     "format": "uri",
                     "maxLength": 512,
-                    "description": "Optional webhook. A public https URL on the default port (no IP addresses, no credentials); the path and query are yours - an order id in the query is the usual shape. P2Flux watches this payment and POSTs a `payment.paid` event there once it is verified on chain, retrying for about 18 hours. Omit it and nothing changes: polling keeps working exactly as before. Watching is capped per caller and in total; past the cap the payment is still created, without notifications, and the response has no `notify_url`. Refused with INVALID_REQUEST on a deployment that does not offer webhooks. A notification is a hint, not a proof: confirm it with `/v1/payments/verify` and match the reference to your order (the SDKs' `handleNotification` does both). See https://p2flux.com/docs/webhooks.html."
+                    "description": "Optional webhook. A public https URL on the default port (no IP addresses, no credentials); the path and query are yours - an order id in the query is the usual shape. P2Flux watches this payment and POSTs a `payment.paid` event there once it is verified on chain, retrying for about 21 hours. Omit it and nothing changes: polling keeps working exactly as before. Watching is capped per caller and in total; past the cap the payment is still created, without notifications, and the response has no `notify_url`. Refused with INVALID_REQUEST on a deployment that does not offer webhooks. A notification is a hint, not a proof: confirm it with `/v1/payments/verify` and match the reference to your order (the SDKs' `handleNotification` does both). See https://p2flux.com/docs/webhooks.html."
                   },
                   "return_url": {
                     "type": "string",
@@ -697,7 +697,7 @@
                     "enum": [
                       "hinkal"
                     ],
-                    "description": "Optional, Base only. Also offer the buyer \"Pay privately with Hinkal\": the hosted checkout shows a second button that pays from the buyer's Hinkal shielded balance (Hinkal's Emporium contract calls the splitter). Settlement, verification and fees to the merchant are unchanged; the buyer pays Hinkal's fee on top. Such a payment cannot be refunded automatically (`refundable: false`, `REFUND_PAYER_UNSUPPORTED`) - return it to an address the buyer gives you. Native gas only: refused with `gas_payment_mode: payment_token`, and on networks without Hinkal."
+                    "description": "Optional, Base only. Also offer the buyer \"Pay privately with Hinkal\": the hosted checkout shows a second button that pays from the buyer's Hinkal shielded balance (Hinkal's Emporium contract calls the splitter). Settlement, verification and fees to the merchant are unchanged; the buyer pays Hinkal's fee on top. Such a payment cannot be refunded automatically (`refundable: false`, `REFUND_PAYER_UNSUPPORTED`) - return it to an address the buyer gives you. The option only adds the button: a buyer can also pay any intent through Hinkal's own app, so check `refundable` and `screening` on every payment. Native gas only: refused with `gas_payment_mode: payment_token`, and on networks without Hinkal."
                   }
                 },
                 "required": [
@@ -4672,7 +4672,7 @@
             "enum": [
               false
             ],
-            "description": "Present, and false, only when the payment came from a shared contract that pays on someone else's behalf (a privacy service such as Hinkal): a refund to the paying address would not reach the buyer, and `POST /v1/refunds/prepare` refuses it with `REFUND_PAYER_UNSUPPORTED`. Absent means nothing is known against refunding."
+            "description": "Present, and false, only when the payment came from a shared contract that pays on someone else's behalf (a privacy service such as Hinkal): a refund to the paying address would not reach the buyer, and `POST /v1/refunds/prepare` refuses it with `REFUND_PAYER_UNSUPPORTED`. It can appear on any payment, including one that never offered a private payment (a buyer can pay any intent through the privacy service's own app); `screening` is then `unknown`. Absent means nothing is known against refunding."
           }
         }
       },
