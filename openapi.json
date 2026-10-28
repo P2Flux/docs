@@ -1442,6 +1442,9 @@
                     "expires_at": {
                       "type": "integer",
                       "description": "Unix seconds; about fifteen minutes out."
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 },
@@ -1543,6 +1546,9 @@
                     },
                     "original": {
                       "$ref": "#/components/schemas/RefundOriginal"
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 }
