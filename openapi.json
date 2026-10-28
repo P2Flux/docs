@@ -56,6 +56,10 @@
     {
       "name": "Service",
       "description": "Liveness."
+    },
+    {
+      "name": "Webhooks",
+      "description": "Delivery history and retry of the notifications sent to a `notify_url`."
     }
   ],
   "paths": {
@@ -357,6 +361,10 @@
                 "properties": {
                   "subscription": {
                     "$ref": "#/components/schemas/Token"
+                  },
+                  "merchant_ref": {
+                    "$ref": "#/components/schemas/MerchantRef",
+                    "description": "Optional. This charge's own reference (for example the period's invoice number). Echoed in the answer; absent, the subscription's merchant_ref is echoed. Nothing is stored and nothing goes on chain."
                   }
                 },
                 "required": [
@@ -406,6 +414,9 @@
                     },
                     "next_period_at": {
                       "type": "string"
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 },
@@ -533,6 +544,10 @@
                         "minimum": 0
                       }
                     }
+                  },
+                  "merchant_ref": {
+                    "$ref": "#/components/schemas/MerchantRef",
+                    "description": "Optional. The merchant_ref you charged that period with, echoed back (P2Flux keeps none); absent, the subscription's."
                   }
                 }
               }
@@ -590,6 +605,9 @@
                     "as_of_block": {
                       "type": "string",
                       "description": "Only on a miss. The head this answer was computed at."
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 }
@@ -698,6 +716,10 @@
                       "hinkal"
                     ],
                     "description": "Optional, Base only. Also offer the buyer \"Pay privately with Hinkal\": the hosted checkout shows a second button that pays from the buyer's Hinkal shielded balance (Hinkal's Emporium contract calls the splitter). Settlement, verification and fees to the merchant are unchanged; the buyer pays Hinkal's fee on top. Such a payment cannot be refunded automatically (`refundable: false`, `REFUND_PAYER_UNSUPPORTED`) - return it to an address the buyer gives you. The option only adds the button: a buyer can also pay any intent through Hinkal's own app, so check `refundable` and `screening` on every payment. Native gas only: refused with `gas_payment_mode: payment_token`, and on networks without Hinkal."
+                  },
+                  "merchant_ref": {
+                    "$ref": "#/components/schemas/MerchantRef",
+                    "description": "Optional. Your order number; the reference becomes a commitment to it (see MerchantRef) and the answer returns `reference_salt`."
                   }
                 },
                 "required": [
@@ -798,6 +820,13 @@
                         "hinkal"
                       ],
                       "description": "Present only when the merchant offered a private payment through Hinkal."
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
+                    },
+                    "reference_salt": {
+                      "$ref": "#/components/schemas/Bytes32",
+                      "description": "Only when the reference commits to `merchant_ref` (a payment created by POST /v1/payments with one): the random salt P2Flux chose. `reference = keccak256(\"p2flux.merchant_ref.v1\" || reference_salt || merchant_ref)` - anyone holding both can prove which order the payment on chain belongs to."
                     }
                   },
                   "examples": [
@@ -949,6 +978,16 @@
                         "unknown"
                       ],
                       "description": "As on /v1/payments/verify: whether the wallet that paid (or signed) is on the OFAC sanctions list. `unknown` also when the payment came through a shared contract on someone else's behalf (a privacy service such as Hinkal, `accounting.refundable: false`): the wallets on chain are then the contract and its relayer, not the buyer."
+                    },
+                    "screening_list": {
+                      "$ref": "#/components/schemas/ScreeningList"
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
+                    },
+                    "reference_salt": {
+                      "$ref": "#/components/schemas/Bytes32",
+                      "description": "Only when the reference commits to `merchant_ref` (a payment created by POST /v1/payments with one): the random salt P2Flux chose. `reference = keccak256(\"p2flux.merchant_ref.v1\" || reference_salt || merchant_ref)` - anyone holding both can prove which order the payment on chain belongs to."
                     }
                   }
                 },
@@ -1094,6 +1133,13 @@
                         "hinkal"
                       ],
                       "description": "Present only when the merchant offered a private payment through Hinkal."
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
+                    },
+                    "reference_salt": {
+                      "$ref": "#/components/schemas/Bytes32",
+                      "description": "Only when the reference commits to `merchant_ref` (a payment created by POST /v1/payments with one): the random salt P2Flux chose. `reference = keccak256(\"p2flux.merchant_ref.v1\" || reference_salt || merchant_ref)` - anyone holding both can prove which order the payment on chain belongs to."
                     }
                   }
                 }
@@ -1242,6 +1288,16 @@
                             "unknown"
                           ],
                           "description": "Sanctions screening of the wallet that paid and of the wallet that signed the transaction (a smart account screens as the account), against the U.S. OFAC SDN list: `sanctioned` when either is on it, `unknown` when the API has no list loaded at the moment. The payment settled and stays valid (a transfer cannot be undone), but P2Flux will not prepare a refund to that wallet; decide whether to fulfil and seek advice. `unknown` also when the payment came through a shared contract on someone else's behalf (a privacy service such as Hinkal, `accounting.refundable: false`): the wallets on chain are then the contract and its relayer, not the buyer."
+                        },
+                        "screening_list": {
+                          "$ref": "#/components/schemas/ScreeningList"
+                        },
+                        "merchant_ref": {
+                          "$ref": "#/components/schemas/MerchantRef"
+                        },
+                        "reference_salt": {
+                          "$ref": "#/components/schemas/Bytes32",
+                          "description": "Only when the reference commits to `merchant_ref` (a payment created by POST /v1/payments with one): the random salt P2Flux chose. `reference = keccak256(\"p2flux.merchant_ref.v1\" || reference_salt || merchant_ref)` - anyone holding both can prove which order the payment on chain belongs to."
                         }
                       }
                     },
@@ -1581,6 +1637,9 @@
                     },
                     "block_number": {
                       "type": "string"
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 },
@@ -1694,6 +1753,10 @@
                         }
                       }
                     ]
+                  },
+                  "merchant_ref": {
+                    "$ref": "#/components/schemas/MerchantRef",
+                    "description": "Optional. Signed into the setup token and the subscription; echoed by status and charges."
                   }
                 },
                 "required": [
@@ -1730,6 +1793,9 @@
                     },
                     "salt": {
                       "type": "string"
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 }
@@ -1864,6 +1930,9 @@
                           "$ref": "#/components/schemas/ErrorCode"
                         }
                       }
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 }
@@ -2067,6 +2136,9 @@
                     "network_fee_authorization": {
                       "type": "object",
                       "description": "With `payment_token`: the token authorization for the quoted fee. Expires with the quote."
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 }
@@ -2318,6 +2390,9 @@
                     "terms": {
                       "type": "object",
                       "description": "The signed authorization: payer, recipient, token, amount, amount_units, period, start, end, salt."
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 }
@@ -3531,6 +3606,10 @@
                       "hinkal"
                     ],
                     "description": "Optional, Base, one-time links only (`once`, `reusable`). Every payment opened from the link offers \"Pay privately with Hinkal\" as well - see `POST /v1/payments`. Old self-hosted checkouts (before this option) refuse such a link."
+                  },
+                  "merchant_ref": {
+                    "$ref": "#/components/schemas/MerchantRef",
+                    "description": "Optional. Signed into the link (key `m`); echoed by open, status, verify and webhooks. A self-hosted checkout older than this field refuses a link that carries it."
                   }
                 },
                 "required": [
@@ -3960,6 +4039,10 @@
                   },
                   "subscription_id": {
                     "$ref": "#/components/schemas/Bytes32"
+                  },
+                  "merchant_ref": {
+                    "$ref": "#/components/schemas/MerchantRef",
+                    "description": "Optional. This charge's own reference; the subscription.charged webhook of this charge carries it. Absent, the link's merchant_ref."
                   }
                 },
                 "required": [
@@ -3995,6 +4078,9 @@
                     },
                     "next_period_at": {
                       "type": "string"
+                    },
+                    "merchant_ref": {
+                      "$ref": "#/components/schemas/MerchantRef"
                     }
                   }
                 }
@@ -4438,6 +4524,189 @@
           "One-time payments"
         ]
       }
+    },
+    "/v1/webhooks/deliveries": {
+      "post": {
+        "operationId": "webhookDeliveries",
+        "summary": "Delivery history of your webhooks",
+        "tags": [
+          "Webhooks"
+        ],
+        "description": "Every notification for one payment (`intent`) or one link (`manage`), with the time, HTTP status and duration of each attempt. Send exactly one of the two. Events are kept 7 days after they finish. Only on deployments that offer webhooks.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "intent": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "The intent a watched payment was created with (any age)."
+                  },
+                  "manage": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "A link's private manage token (`p2lm1.…`): that link's events."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Oldest first; empty when nothing was sent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "events"
+                  ],
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/WebhookDelivery"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/redeliver": {
+      "post": {
+        "operationId": "redeliverWebhook",
+        "summary": "Retry a pending webhook now",
+        "tags": [
+          "Webhooks"
+        ],
+        "description": "A notification still being retried is sent at the next delivery pass (within seconds) instead of at its next scheduled retry. Only a pending event: a finished one (delivered, or given up after the last retry) keeps no URL or body and answers WEBHOOK_EVENT_FINISHED. At most 3 times per event per hour (RATE_LIMITED). Send exactly one of `intent` or `manage`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "event_id"
+                ],
+                "properties": {
+                  "intent": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "The intent a watched payment was created with (any age)."
+                  },
+                  "manage": {
+                    "$ref": "#/components/schemas/Token",
+                    "description": "A link's private manage token (`p2lm1.…`): that link's events."
+                  },
+                  "event_id": {
+                    "$ref": "#/components/schemas/Bytes32"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The event, now due.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDelivery"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [],
@@ -4591,7 +4860,9 @@
           "LINK_UNAVAILABLE",
           "ALREADY_SUBSCRIBED",
           "PAYER_SANCTIONED",
-          "RECIPIENT_SANCTIONED"
+          "RECIPIENT_SANCTIONED",
+          "WEBHOOK_EVENT_NOT_FOUND",
+          "WEBHOOK_EVENT_FINISHED"
         ],
         "description": "Every code this API can return. Stable identifiers - branch on these, never on the human-readable text or the HTTP status alone."
       },
@@ -4742,6 +5013,31 @@
                 "zero_native_revoke": {
                   "type": "boolean",
                   "description": "Always false: revoking a recurring authorization is the payer's own transaction, by the contract's design. Removing an allowance stops collection and is a different act."
+                }
+              }
+            }
+          },
+          "webhook_signing_keys": {
+            "type": "array",
+            "description": "Only where webhooks are offered: the public keys that sign every webhook delivery (header `p2flux-signature: t=<unix>,kid=<kid>,v1=<base64url Ed25519 signature over \"<t>.<body>\">`). Check the signature with the key whose `kid` the header names, and refuse a `t` more than five minutes old.",
+            "items": {
+              "type": "object",
+              "required": [
+                "kid",
+                "alg",
+                "public_key"
+              ],
+              "properties": {
+                "kid": {
+                  "type": "string",
+                  "description": "Key id, as in the signature header."
+                },
+                "alg": {
+                  "const": "Ed25519"
+                },
+                "public_key": {
+                  "type": "string",
+                  "description": "The raw 32-byte Ed25519 public key, base64url."
                 }
               }
             }
@@ -5141,6 +5437,9 @@
               "hinkal"
             ],
             "description": "Present only when the merchant offered a private payment through Hinkal."
+          },
+          "merchant_ref": {
+            "$ref": "#/components/schemas/MerchantRef"
           }
         }
       },
@@ -5241,7 +5540,7 @@
           "chain_id",
           "data"
         ],
-        "description": "The body P2Flux POSTs to a `notify_url`. Headers `p2flux-event-id` and `p2flux-event-type` repeat `id` and `type`. Answer any 2xx to acknowledge; anything else (including a redirect, or no answer within 10 seconds) is retried after 1 min, 5 min, 30 min, 2 h, 6 h and 12 h. The same event can arrive more than once, and anyone can POST to your URL: fulfil once per verified payment (reference and transaction) or subscription period, never per `id`. It carries no signature and no secret - treat it as a hint and confirm with the API before fulfilling.",
+        "description": "The body P2Flux POSTs to a `notify_url`. Headers `p2flux-event-id` and `p2flux-event-type` repeat `id` and `type`. Answer any 2xx to acknowledge; anything else (including a redirect, or no answer within 10 seconds) is retried after 1 min, 5 min, 30 min, 2 h, 6 h and 12 h. The same event can arrive more than once, and anyone can POST to your URL: fulfil once per verified payment (reference and transaction) or subscription period, never per `id`. Every delivery is signed: header `p2flux-signature` (Ed25519, keys in /v1/capabilities `webhook_signing_keys`). It carries no secret - still confirm with the API before fulfilling.",
         "properties": {
           "id": {
             "$ref": "#/components/schemas/Bytes32"
@@ -5263,8 +5562,105 @@
           },
           "data": {
             "type": "object",
-            "description": "`payment.paid`: intent, reference, tx_hash, amount, block_number, gas_payment_mode, screening, link_id (link payments). Confirm with POST /v1/payments/verify {intent, tx_hash}. `subscription.charged` / `subscription.updated`: link_id, subscription_id, payer, state, paid_count, period_index and tx_hash (charged), reason (updated), tag. Confirm with POST /v1/links/status using the link's manage token.",
+            "description": "`payment.paid`: intent, reference, tx_hash, amount, block_number, gas_payment_mode, screening, screening_list, link_id (link payments), merchant_ref and reference_salt (when the payment or link has one). Confirm with POST /v1/payments/verify {intent, tx_hash}. `subscription.charged` / `subscription.updated`: link_id, subscription_id, payer, state, paid_count, period_index and tx_hash (charged), reason (updated), tag, merchant_ref (the charge's own from Collect now, else the link's). Confirm with POST /v1/links/status using the link's manage token.",
             "additionalProperties": true
+          }
+        }
+      },
+      "ScreeningList": {
+        "type": "object",
+        "required": [
+          "version",
+          "fetched_at"
+        ],
+        "description": "The sanctions list `screening` was answered from: a hash of its content and when P2Flux downloaded it. Keep it with the verdict to show which list a payment was screened against. Absent while the deployment has no list (then `screening` is `unknown`).",
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{16}$",
+            "description": "First 16 hex characters of the SHA-256 of the sorted listed addresses. Changes when the list's content changes."
+          },
+          "fetched_at": {
+            "type": "integer",
+            "description": "Unix seconds: when this list was downloaded from OFAC."
+          }
+        }
+      },
+      "MerchantRef": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._:/#-]{1,64}$",
+        "description": "Your own order, invoice or customer number: 1 to 64 ASCII letters, digits and `. _ : / # -` (no spaces, no `@`, so no email addresses). Signed into the token, not encrypted - the buyer can read it, so never put personal data in it. P2Flux stores nothing: it is echoed back from the token. On POST /v1/payments the on-chain reference becomes a commitment to it: `reference = keccak256(\"p2flux.merchant_ref.v1\" || reference_salt || merchant_ref)` (UTF-8 bytes, salt 32 bytes). Test vector: salt `0x1111111111111111111111111111111111111111111111111111111111111111`, merchant_ref `INV-1042` -> `0x03f0752ac8d6e9e6b5bffa5a84881ce0d69c595da28be9ddd91fca4306478f52`. Check it yourself: `cast keccak $(cast concat-hex $(cast from-utf8 p2flux.merchant_ref.v1) <salt> $(cast from-utf8 <merchant_ref>))`. Links and subscriptions carry it in their signed token only; their references keep their own rules.",
+        "examples": [
+          "INV-1042"
+        ]
+      },
+      "WebhookDelivery": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "created_at",
+          "attempts",
+          "next_at",
+          "outcome"
+        ],
+        "description": "One notification and how its delivery went. Never the URL or what was sent.",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Bytes32",
+            "description": "The event id, as in the `p2flux-event-id` header."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "payment.paid",
+              "subscription.charged",
+              "subscription.updated"
+            ]
+          },
+          "created_at": {
+            "type": "integer",
+            "description": "Unix seconds."
+          },
+          "attempts": {
+            "type": "array",
+            "description": "The last 10 attempts, oldest first. Empty for an event from before October 2026, or one not tried yet.",
+            "items": {
+              "type": "object",
+              "required": [
+                "at",
+                "status",
+                "duration_ms"
+              ],
+              "properties": {
+                "at": {
+                  "type": "integer",
+                  "description": "Unix seconds."
+                },
+                "status": {
+                  "type": "integer",
+                  "description": "The HTTP status your server answered; 0 = no usable answer (unreachable, timeout, a private address)."
+                },
+                "duration_ms": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "next_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "When the next attempt is due (unix seconds); null once finished."
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "delivered",
+              "failed"
+            ]
           }
         }
       }
