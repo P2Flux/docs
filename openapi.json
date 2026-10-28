@@ -4713,6 +4713,159 @@
           }
         }
       }
+    },
+    "/v1/rates": {
+      "get": {
+        "operationId": "rates",
+        "summary": "Exchange rates (ECB, per EUR)",
+        "tags": [
+          "Service"
+        ],
+        "description": "ECB daily euro reference rates for USD and GBP, for statements in EUR or GBP. Public data, served from P2Flux's own copy (downloaded from the ECB at most once a day), so a page that already calls the API needs no other host. Any range up to 366 days, ending today at the latest.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "description": "First day, YYYY-MM-DD (UTC)."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "description": "Last day, inclusive."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rates per day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rates"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_REQUEST`: `from`/`to` missing or not real dates, `from` after `to`, or a range over 366 days.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`RATES_UNAVAILABLE`: the deployment has no rates yet (the ECB download has not succeeded). Retry after `retry_after` seconds. Payments never depend on rates.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "ratesPost",
+        "summary": "Exchange rates (POST form)",
+        "tags": [
+          "Service"
+        ],
+        "description": "Identical to the GET, with `from` and `to` in the body. For hosts whose HTTP client only makes POST requests.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rates per day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rates"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_REQUEST`: `from`/`to` missing or not real dates, `from` after `to`, or a range over 366 days.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`RATES_UNAVAILABLE`: the deployment has no rates yet (the ECB download has not succeeded). Retry after `retry_after` seconds. Payments never depend on rates.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [],
@@ -4868,7 +5021,8 @@
           "PAYER_SANCTIONED",
           "RECIPIENT_SANCTIONED",
           "WEBHOOK_EVENT_NOT_FOUND",
-          "WEBHOOK_EVENT_FINISHED"
+          "WEBHOOK_EVENT_FINISHED",
+          "RATES_UNAVAILABLE"
         ],
         "description": "Every code this API can return. Stable identifiers - branch on these, never on the human-readable text or the HTTP status alone."
       },
@@ -5667,6 +5821,63 @@
               "delivered",
               "failed"
             ]
+          }
+        }
+      },
+      "Rates": {
+        "type": "object",
+        "required": [
+          "source",
+          "base",
+          "fetched_at",
+          "rates"
+        ],
+        "description": "ECB euro foreign exchange reference rates: units of each currency per 1 EUR, as published by the European Central Bank (about 16:00 CET on TARGET working days). P2Flux books USDC as USD 1:1, so a USD amount in EUR is `amount / USD` and in GBP `amount / USD * GBP`.",
+        "properties": {
+          "source": {
+            "type": "string",
+            "const": "ECB"
+          },
+          "base": {
+            "type": "string",
+            "const": "EUR"
+          },
+          "fetched_at": {
+            "type": "integer",
+            "description": "Unix seconds: when P2Flux last downloaded the rates from the ECB (at most once a day)."
+          },
+          "rates": {
+            "type": "object",
+            "description": "One entry per calendar day in the range (YYYY-MM-DD). A day the ECB did not publish (weekend, holiday, today before publication) carries the last published day's rates, named in `rate_date`. Days after today, and days with no published rate in the 7 days before them, are left out.",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "USD",
+                "GBP",
+                "rate_date"
+              ],
+              "properties": {
+                "USD": {
+                  "type": "number",
+                  "description": "US dollars per 1 EUR.",
+                  "examples": [
+                    1.1193
+                  ]
+                },
+                "GBP": {
+                  "type": "number",
+                  "description": "Pounds sterling per 1 EUR.",
+                  "examples": [
+                    0.83728
+                  ]
+                },
+                "rate_date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "The ECB publication day these rates are from."
+                }
+              }
+            }
           }
         }
       }
