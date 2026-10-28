@@ -4682,7 +4682,7 @@
         "tags": [
           "Webhooks"
         ],
-        "description": "A notification still being retried is sent at the next delivery pass (within seconds) instead of at its next scheduled retry. Only a pending event: a finished one (delivered, or given up after the last retry) keeps no URL or body and answers WEBHOOK_EVENT_FINISHED. At most 3 times per event per hour (RATE_LIMITED). Send exactly one of `intent` or `manage`.",
+        "description": "A notification still being retried is sent at the next delivery pass (within seconds) as one extra attempt. It does not replace or use up a scheduled retry: if it fails, the event keeps its attempt count and its next scheduled retry. Only a pending event: a finished one (delivered, or given up after the last retry) keeps no URL or body and answers WEBHOOK_EVENT_FINISHED. At most 3 times per event per hour (RATE_LIMITED). Send exactly one of `intent` or `manage`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -5980,6 +5980,11 @@
                 },
                 "duration_ms": {
                   "type": "integer"
+                },
+                "manual": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Present on an attempt made by POST /v1/webhooks/redeliver. Manual attempts are extra: they never count towards the scheduled retries."
                 }
               }
             }
